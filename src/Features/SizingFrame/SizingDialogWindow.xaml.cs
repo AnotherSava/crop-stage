@@ -7,8 +7,8 @@ namespace CropStage.Features.SizingFrame;
 
 public partial class SizingDialogWindow : Window
 {
-    private const double FilenameBoxExpandedWidth = 230;
-    private const double FilenameBoxCompactWidth = 190;
+    private const double FilenameBoxExpandedWidth = 192;
+    private const double FilenameBoxCompactWidth = 154;
 
     private bool _isCompact;
 
@@ -33,7 +33,6 @@ public partial class SizingDialogWindow : Window
         HeightBox.TextChanged += (_, _) => DimensionsChanged?.Invoke(this, EventArgs.Empty);
 
         ScreenshotButton.Click += (_, _) => ScreenshotRequested?.Invoke(this, EventArgs.Empty);
-        CompactScreenshotButton.Click += (_, _) => ScreenshotRequested?.Invoke(this, EventArgs.Empty);
         BrowseButton.Click += (_, _) => BrowseRequested?.Invoke(this, EventArgs.Empty);
         ExpandedToggleButton.Click += (_, _) => ToggleCompactMode();
         CompactToggleButton.Click += (_, _) => ToggleCompactMode();
@@ -70,8 +69,6 @@ public partial class SizingDialogWindow : Window
         FolderLabel.Visibility = expandedVis;
         FolderBox.Visibility = expandedVis;
         BrowseButton.Visibility = expandedVis;
-        ScreenshotButton.Visibility = expandedVis;
-        CompactScreenshotButton.Visibility = compactVis;
         CompactToggleButton.Visibility = compactVis;
         FilenameBox.Width = _isCompact ? FilenameBoxCompactWidth : FilenameBoxExpandedWidth;
         CompactModeChanged?.Invoke(this, EventArgs.Empty);
@@ -81,7 +78,6 @@ public partial class SizingDialogWindow : Window
     {
         var tip = string.IsNullOrWhiteSpace(shortcut) ? "Screenshot" : $"Screenshot ({shortcut})";
         ScreenshotButton.ToolTip = tip;
-        CompactScreenshotButton.ToolTip = tip;
     }
 
     public int WidthValue => int.TryParse(WidthBox.Text, out var v) ? v : 0;

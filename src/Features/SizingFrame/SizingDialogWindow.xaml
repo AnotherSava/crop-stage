@@ -104,7 +104,6 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="70"/>
@@ -117,7 +116,7 @@
             <TextBlock x:Name="SizeLabel" Grid.Row="0" Grid.Column="0" Text="Size" Style="{StaticResource FieldLabel}"/>
             <StackPanel x:Name="SizeFields" Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
                 <TextBox x:Name="WidthBox" Width="80"/>
-                <TextBlock Text="×" VerticalAlignment="Center" Margin="10,0" FontSize="15" Foreground="#888"/>
+                <TextBlock Text="×" VerticalAlignment="Center" Width="12" Margin="10,0" FontSize="15" Foreground="#888"/>
                 <TextBox x:Name="HeightBox" Width="80"/>
             </StackPanel>
             <Button Grid.Row="0" Grid.Column="2"
@@ -132,23 +131,22 @@
 
             <!-- Folder -->
             <TextBlock x:Name="FolderLabel" Grid.Row="1" Grid.Column="0" Text="Folder" Style="{StaticResource FieldLabel}"/>
-            <TextBox Grid.Row="1" Grid.Column="1" x:Name="FolderBox" Width="230"/>
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="FolderBox" Width="192"/>
             <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseButton" Content="…" Width="32" Height="28" Margin="8,4,0,4" FontSize="14"/>
 
             <!-- Filename -->
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Filename" Style="{StaticResource FieldLabel}"/>
-            <TextBox Grid.Row="2" Grid.Column="1" x:Name="FilenameBox" Width="230"/>
+            <TextBox Grid.Row="2" Grid.Column="1" x:Name="FilenameBox" Width="192"/>
             <Button Grid.Row="2" Grid.Column="2"
-                    x:Name="CompactScreenshotButton"
+                    x:Name="ScreenshotButton"
                     Content="&#xE114;"
                     FontFamily="Segoe MDL2 Assets"
                     FontSize="13"
-                    Width="34" Height="28"
+                    Width="32" Height="28"
                     Padding="0"
                     Margin="8,4,0,4"
                     Style="{StaticResource PrimaryButton}"
-                    ToolTip="Screenshot"
-                    Visibility="Collapsed"/>
+                    ToolTip="Screenshot"/>
             <Button Grid.Row="2" Grid.Column="3"
                     x:Name="CompactToggleButton"
                     Content="&#xE70D;"
@@ -159,14 +157,6 @@
                     Style="{StaticResource GhostButton}"
                     ToolTip="Expanded mode"
                     Visibility="Collapsed"/>
-
-            <!-- Full Screenshot -->
-            <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4"
-                    x:Name="ScreenshotButton"
-                    Content="Screenshot"
-                    Style="{StaticResource PrimaryButton}"
-                    Height="36"
-                    Margin="0,12,0,4"/>
         </Grid>
     </Border>
 </Window>
