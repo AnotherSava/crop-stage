@@ -67,6 +67,11 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="#005A9E"/>
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Background" Value="#B0B0B0"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#A0A0A0"/>
+                                <Setter Property="Foreground" Value="#ECECEC"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>

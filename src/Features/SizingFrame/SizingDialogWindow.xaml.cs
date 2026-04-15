@@ -11,6 +11,8 @@ public partial class SizingDialogWindow : Window
     private const double FilenameBoxCompactWidth = 154;
 
     private bool _isCompact;
+    private string _screenshotTip = "Screenshot";
+    private const string OffScreenTip = "Frame is partly off-screen";
 
     public event EventHandler? CommitRequested;
     public event EventHandler? DimensionsChanged;
@@ -76,8 +78,14 @@ public partial class SizingDialogWindow : Window
 
     public void SetScreenshotShortcut(string shortcut)
     {
-        var tip = string.IsNullOrWhiteSpace(shortcut) ? "Screenshot" : $"Screenshot ({shortcut})";
-        ScreenshotButton.ToolTip = tip;
+        _screenshotTip = string.IsNullOrWhiteSpace(shortcut) ? "Screenshot" : $"Screenshot ({shortcut})";
+        if (ScreenshotButton.IsEnabled) ScreenshotButton.ToolTip = _screenshotTip;
+    }
+
+    public void SetScreenshotEnabled(bool enabled)
+    {
+        ScreenshotButton.IsEnabled = enabled;
+        ScreenshotButton.ToolTip = enabled ? _screenshotTip : OffScreenTip;
     }
 
     public int WidthValue => int.TryParse(WidthBox.Text, out var v) ? v : 0;

@@ -59,6 +59,8 @@ public static class AppUtilities
 
     /// <summary>
     /// Returns the DPI scale for the monitor currently hosting the given WPF window.
+    /// Under PerMonitorV2 the window's own Left/Top DIPs are interpreted at this scale —
+    /// use this (not the primary scale) when converting Left/Top to physical pixels.
     /// </summary>
     public static double GetDpiScaleForWindow(System.Windows.Window window)
     {

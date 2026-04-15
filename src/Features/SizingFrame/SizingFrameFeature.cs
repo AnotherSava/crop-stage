@@ -169,7 +169,7 @@ public sealed class SizingFrameFeature : IDisposable
         var interiorLeftPx = frameOuterLeftPx + borderTpx;
         var interiorTopPx = compTopPx + borderTpx;
 
-        _frame!.SetInteriorGeometry(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx);
+        UpdateFrameGeometry(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx);
     }
 
     private double GetDialogWidth()
@@ -215,7 +215,34 @@ public sealed class SizingFrameFeature : IDisposable
     {
         if (_dialog == null || _frame == null) return;
         var (leftPx, topPx) = GetInteriorOriginPx(heightPx);
-        _frame.SetInteriorGeometry(leftPx, topPx, widthPx, heightPx);
+        UpdateFrameGeometry(leftPx, topPx, widthPx, heightPx);
+    }
+
+    private void UpdateFrameGeometry(int leftPx, int topPx, int widthPx, int heightPx)
+    {
+        _frame!.SetInteriorGeometry(leftPx, topPx, widthPx, heightPx);
+        var onScreen = IsRectFullyOnScreen(leftPx, topPx, widthPx, heightPx);
+        _dialog?.SetScreenshotEnabled(onScreen);
+        _frame.SetCrossVisible(!onScreen);
+    }
+
+    /// <summary>
+    /// Returns true if every pixel of the given rect (in physical virtual-screen pixels)
+    /// is covered by some monitor. Assumes monitors don't overlap, which is the Windows default.
+    /// </summary>
+    private static bool IsRectFullyOnScreen(int leftPx, int topPx, int widthPx, int heightPx)
+    {
+        if (widthPx <= 0 || heightPx <= 0) return false;
+        var rect = new System.Drawing.Rectangle(leftPx, topPx, widthPx, heightPx);
+        long rectArea = (long)widthPx * heightPx;
+        long covered = 0;
+        foreach (var screen in Screen.AllScreens)
+        {
+            var intersect = System.Drawing.Rectangle.Intersect(rect, screen.Bounds);
+            if (!intersect.IsEmpty)
+                covered += (long)intersect.Width * intersect.Height;
+        }
+        return covered >= rectArea;
     }
 
     /// <summary>
@@ -307,6 +334,12 @@ public sealed class SizingFrameFeature : IDisposable
         var interiorWidthPx = _state.Width;
         var interiorHeightPx = _state.Height;
         var (interiorLeftPx, interiorTopPx) = GetInteriorOriginPx(interiorHeightPx);
+
+        if (!IsRectFullyOnScreen(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx))
+        {
+            Logger.Info("Screenshot skipped: frame is not fully on-screen");
+            return;
+        }
 
         var folder = _state.ResolvedFolder;
         if (string.IsNullOrWhiteSpace(folder))
