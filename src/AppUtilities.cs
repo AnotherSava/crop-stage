@@ -56,4 +56,26 @@ public static class AppUtilities
             ? primary.Bounds.Height / System.Windows.SystemParameters.PrimaryScreenHeight
             : 1.0;
     }
+
+    /// <summary>
+    /// Returns the DPI scale for the monitor currently hosting the given WPF window.
+    /// </summary>
+    public static double GetDpiScaleForWindow(System.Windows.Window window)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero) return GetPrimaryDpiScale();
+        var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (monitor == IntPtr.Zero) return GetPrimaryDpiScale();
+        if (GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out var dpiX, out _) != 0) return GetPrimaryDpiScale();
+        return dpiX / 96.0;
+    }
+
+    private const int MONITOR_DEFAULTTONEAREST = 2;
+    private const int MDT_EFFECTIVE_DPI = 0;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int dwFlags);
+
+    [DllImport("Shcore.dll")]
+    private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 }

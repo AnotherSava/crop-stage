@@ -13,6 +13,10 @@ namespace CropStage.Features.SizingFrame;
 /// covering the frame interior forces DWM to recomposite ~1MP of alpha on every topmost-Z-order
 /// disturbance, which — critically — includes focus changes between other topmost windows.
 /// Four small opaque windows participate in normal Z-order without the composition cost.
+///
+/// Edges are positioned via <c>SetWindowPos</c> in physical virtual-screen pixels (bypassing
+/// WPF's DIP system) so they align pixel-exact even when the frame spans monitors with
+/// different DPI — WPF's per-window DIP rounding otherwise leaves visible gaps at corners.
 /// </summary>
 public sealed class SizingFrameBorder : IDisposable
 {
@@ -20,17 +24,18 @@ public sealed class SizingFrameBorder : IDisposable
     private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const int WS_EX_NOACTIVATE = 0x08000000;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
 
     private readonly Window[] _edges = new Window[4];
-    private readonly double _thickness;
+    private readonly int _thicknessPx;
     private readonly SolidColorBrush _brush;
     private bool _created;
     private bool _disposed;
 
     public SizingFrameBorder(string colorHex, int thicknessPixels)
     {
-        var dpi = AppUtilities.GetPrimaryDpiScale();
-        _thickness = thicknessPixels / dpi;
+        _thicknessPx = thicknessPixels;
         var color = Colors.Red;
         if (AppConfig.TryParseHexColor(colorHex, out var rgb))
             color = Color.FromRgb(rgb.R, rgb.G, rgb.B);
@@ -74,18 +79,18 @@ public sealed class SizingFrameBorder : IDisposable
         foreach (var w in _edges) w.Close();
     }
 
-    public void SetInteriorGeometry(double interiorLeft, double interiorTop, double interiorWidth, double interiorHeight)
+    public void SetInteriorGeometry(int interiorLeftPx, int interiorTopPx, int interiorWidthPx, int interiorHeightPx)
     {
         EnsureCreated();
-        var t = _thickness;
-        var outerLeft = interiorLeft - t;
-        var outerTop = interiorTop - t;
-        var outerWidth = interiorWidth + 2 * t;
+        var t = _thicknessPx;
+        var outerLeft = interiorLeftPx - t;
+        var outerTop = interiorTopPx - t;
+        var outerWidth = interiorWidthPx + 2 * t;
 
-        SetBounds(_edges[0], outerLeft, outerTop, outerWidth, t);                       // top
-        SetBounds(_edges[1], outerLeft, interiorTop + interiorHeight, outerWidth, t);   // bottom
-        SetBounds(_edges[2], outerLeft, interiorTop, t, interiorHeight);                // left
-        SetBounds(_edges[3], interiorLeft + interiorWidth, interiorTop, t, interiorHeight); // right
+        SetPhysicalBounds(_edges[0], outerLeft, outerTop, outerWidth, t);                       // top
+        SetPhysicalBounds(_edges[1], outerLeft, interiorTopPx + interiorHeightPx, outerWidth, t); // bottom
+        SetPhysicalBounds(_edges[2], outerLeft, interiorTopPx, t, interiorHeightPx);             // left
+        SetPhysicalBounds(_edges[3], interiorLeftPx + interiorWidthPx, interiorTopPx, t, interiorHeightPx); // right
     }
 
     private void EnsureCreated()
@@ -102,33 +107,28 @@ public sealed class SizingFrameBorder : IDisposable
                 ShowInTaskbar = false,
                 ShowActivated = false,
                 Background = _brush,
-                Width = _thickness,
-                Height = _thickness,
+                Width = _thicknessPx,
+                Height = _thicknessPx,
                 Left = -10000,
                 Top = -10000,
                 WindowStartupLocation = WindowStartupLocation.Manual,
                 UseLayoutRounding = true
             };
-            w.SourceInitialized += OnSourceInitialized;
+            // Force HWND creation so SetWindowPos can position the window
+            // before it's shown (prevents a flash at Left=-10000 on Show()).
+            var hwnd = new WindowInteropHelper(w).EnsureHandle();
+            var style = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
             _edges[i] = w;
         }
         _created = true;
     }
 
-    private static void OnSourceInitialized(object? sender, EventArgs e)
+    private static void SetPhysicalBounds(Window w, int x, int y, int width, int height)
     {
-        if (sender is not Window w) return;
         var hwnd = new WindowInteropHelper(w).Handle;
-        var style = GetWindowLong(hwnd, GWL_EXSTYLE);
-        SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
-    }
-
-    private static void SetBounds(Window w, double x, double y, double width, double height)
-    {
-        if (w.Left != x) w.Left = x;
-        if (w.Top != y) w.Top = y;
-        if (w.Width != width) w.Width = width;
-        if (w.Height != height) w.Height = height;
+        if (hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
     public void Dispose()
@@ -143,4 +143,8 @@ public sealed class SizingFrameBorder : IDisposable
 
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 }

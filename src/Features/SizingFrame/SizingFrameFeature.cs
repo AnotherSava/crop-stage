@@ -143,33 +143,33 @@ public sealed class SizingFrameFeature : IDisposable
     {
         // Layout: frame on top, dialog directly below, dialog's top-left flush with
         // frame's outer-bottom-left. Frame dimension changes pivot at this corner.
+        // Center on primary monitor; compute frame in physical pixels, dialog in
+        // primary-monitor DIPs (primary is the initial host, so WPF's DIP scale matches).
         var primary = Screen.PrimaryScreen ?? Screen.AllScreens[0];
         var dpi = AppUtilities.GetPrimaryDpiScale();
-        var screenWidthDip = primary.Bounds.Width / dpi;
-        var screenHeightDip = primary.Bounds.Height / dpi;
 
-        var interiorWidth = _state.Width / dpi;
-        var interiorHeight = _state.Height / dpi;
-        var borderT = _config.FrameBorderThickness / dpi;
-        var dialogWidth = GetDialogWidth();
-        var dialogHeight = GetDialogHeight();
+        var interiorWidthPx = _state.Width;
+        var interiorHeightPx = _state.Height;
+        var borderTpx = _config.FrameBorderThickness;
+        var dialogWidthPx = (int)Math.Round(GetDialogWidth() * dpi);
+        var dialogHeightPx = (int)Math.Round(GetDialogHeight() * dpi);
 
-        var frameOuterWidth = interiorWidth + 2 * borderT;
-        var frameOuterHeight = interiorHeight + 2 * borderT;
-        var compWidth = Math.Max(frameOuterWidth, dialogWidth);
-        var compHeight = frameOuterHeight + dialogHeight;
+        var frameOuterWidthPx = interiorWidthPx + 2 * borderTpx;
+        var frameOuterHeightPx = interiorHeightPx + 2 * borderTpx;
+        var compWidthPx = Math.Max(frameOuterWidthPx, dialogWidthPx);
+        var compHeightPx = frameOuterHeightPx + dialogHeightPx;
 
-        var compLeft = Math.Max(0, (screenWidthDip - compWidth) / 2);
-        var compTop = Math.Max(0, (screenHeightDip - compHeight) / 2);
+        var compLeftPx = primary.Bounds.Left + Math.Max(0, (primary.Bounds.Width - compWidthPx) / 2);
+        var compTopPx = primary.Bounds.Top + Math.Max(0, (primary.Bounds.Height - compHeightPx) / 2);
 
-        var frameOuterLeft = compLeft + (compWidth - frameOuterWidth) / 2;
-        _dialog!.Left = frameOuterLeft;
-        _dialog.Top = compTop + frameOuterHeight;
+        var frameOuterLeftPx = compLeftPx + (compWidthPx - frameOuterWidthPx) / 2;
+        _dialog!.Left = frameOuterLeftPx / dpi;
+        _dialog.Top = (compTopPx + frameOuterHeightPx) / dpi;
 
-        var interiorLeft = frameOuterLeft + borderT;
-        var interiorTop = compTop + borderT;
+        var interiorLeftPx = frameOuterLeftPx + borderTpx;
+        var interiorTopPx = compTopPx + borderTpx;
 
-        _frame!.SetInteriorGeometry(interiorLeft, interiorTop, interiorWidth, interiorHeight);
+        _frame!.SetInteriorGeometry(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx);
     }
 
     private double GetDialogWidth()
@@ -214,13 +214,22 @@ public sealed class SizingFrameFeature : IDisposable
     private void SyncFrameToDialog(int widthPx, int heightPx)
     {
         if (_dialog == null || _frame == null) return;
-        var dpi = AppUtilities.GetPrimaryDpiScale();
-        var borderT = _config.FrameBorderThickness / dpi;
-        var interiorWidth = widthPx / dpi;
-        var interiorHeight = heightPx / dpi;
-        var interiorLeft = _dialog.Left + borderT;
-        var interiorTop = _dialog.Top - interiorHeight - borderT;
-        _frame.SetInteriorGeometry(interiorLeft, interiorTop, interiorWidth, interiorHeight);
+        var (leftPx, topPx) = GetInteriorOriginPx(heightPx);
+        _frame.SetInteriorGeometry(leftPx, topPx, widthPx, heightPx);
+    }
+
+    /// <summary>
+    /// Computes the interior (top-left) corner of the frame in physical virtual-screen pixels,
+    /// using the dialog's current monitor DPI (PerMonitorV2) so the frame lines up exactly
+    /// with the dialog even across monitors.
+    /// </summary>
+    private (int leftPx, int topPx) GetInteriorOriginPx(int interiorHeightPx)
+    {
+        var dpi = AppUtilities.GetDpiScaleForWindow(_dialog!);
+        var borderTpx = _config.FrameBorderThickness;
+        var dialogLeftPx = (int)Math.Round(_dialog!.Left * dpi);
+        var dialogTopPx = (int)Math.Round(_dialog.Top * dpi);
+        return (dialogLeftPx + borderTpx, dialogTopPx - interiorHeightPx - borderTpx);
     }
 
     private void OnDimensionsChanged(object? sender, EventArgs e)
@@ -295,16 +304,9 @@ public sealed class SizingFrameFeature : IDisposable
         // Commit any pending textbox edits so the capture uses current dialog values.
         OnCommitRequested(this, EventArgs.Empty);
 
-        var dpi = AppUtilities.GetPrimaryDpiScale();
-        var borderT = _config.FrameBorderThickness / dpi;
-        var interiorWidthDip = _state.Width / dpi;
-        var interiorHeightDip = _state.Height / dpi;
-        var interiorLeftDip = _dialog.Left + borderT;
-        var interiorTopDip = _dialog.Top - interiorHeightDip - borderT;
-        var interiorLeftPx = (int)Math.Round(interiorLeftDip * dpi);
-        var interiorTopPx = (int)Math.Round(interiorTopDip * dpi);
         var interiorWidthPx = _state.Width;
         var interiorHeightPx = _state.Height;
+        var (interiorLeftPx, interiorTopPx) = GetInteriorOriginPx(interiorHeightPx);
 
         var folder = _state.ResolvedFolder;
         if (string.IsNullOrWhiteSpace(folder))
