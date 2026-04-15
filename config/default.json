@@ -1,0 +1,10 @@
+{
+  "frameToggleShortcut": "Ctrl+Shift+0",
+  "screenshotShortcut": "PrintScreen",
+  "frameBorderColor": "#FF0000",
+  "frameBorderThickness": 2,
+  "defaultFrameWidth": 1280,
+  "defaultFrameHeight": 800,
+  "defaultScreenshotFolder": "%USERPROFILE%\\Pictures",
+  "defaultScreenshotFilename": "frame.png"
+}

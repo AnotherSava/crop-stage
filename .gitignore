@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Claude Code
+.claude/settings.local.json
+
+# Local docs — ignore all except plans and screenshots
+docs/*
+!docs/plans/
+!docs/screenshots/
+
+# Runtime state (generated next to exe on first run)
+state.json
+
+# Local deploy config (machine-specific install path)
+config/deploy.env
+
+# Dev scripts
+scripts/
