@@ -51,6 +51,13 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         _frameFeature = new SizingFrameFeature(_config);
 
+        if (!_frameFeature.StartWithWindowsInitialized)
+        {
+            try { AppConfig.SetStartWithWindows(true); }
+            catch (Exception ex) { Logger.Warn($"Failed to set Start with Windows default: {ex.Message}"); }
+            _frameFeature.StartWithWindowsInitialized = true;
+        }
+
         _frameHotkey = new GlobalHotkey(1, _config.FrameToggleShortcut, () => _frameFeature.Toggle());
         if (!_frameHotkey.IsRegistered)
             Logger.Warn($"Could not register hotkey '{_config.FrameToggleShortcut}' — use the tray menu instead");
@@ -68,6 +75,13 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (_frameHotkey.IsRegistered)
             toggleFrameItem.ShortcutKeyDisplayString = _config.FrameToggleShortcut;
         toggleFrameItem.Click += (_, _) => _frameFeature.Toggle();
+
+        var hideWithEscItem = new ToolStripMenuItem("Hide with Esc")
+        {
+            CheckOnClick = true,
+            Checked = _frameFeature.HideWithEsc
+        };
+        hideWithEscItem.CheckedChanged += (_, _) => _frameFeature.HideWithEsc = hideWithEscItem.Checked;
 
         _startWithWindowsItem = new ToolStripMenuItem("Start with Windows")
         {
@@ -99,6 +113,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         _trayIcon.ContextMenuStrip.Items.AddRange(new ToolStripItem[]
         {
             toggleFrameItem,
+            hideWithEscItem,
             new ToolStripSeparator(),
             _startWithWindowsItem,
             openConfigItem,

@@ -32,6 +32,28 @@ public sealed class SizingFrameFeature : IDisposable
         _state = new FrameState(config);
     }
 
+    public bool HideWithEsc
+    {
+        get => _state.HideWithEsc;
+        set
+        {
+            if (_state.HideWithEsc == value) return;
+            _state.HideWithEsc = value;
+            if (_visible)
+            {
+                _escHotkey?.Dispose();
+                _escHotkey = null;
+                if (value) RegisterEscHotkey();
+            }
+        }
+    }
+
+    public bool StartWithWindowsInitialized
+    {
+        get => _state.StartWithWindowsInitialized;
+        set => _state.StartWithWindowsInitialized = value;
+    }
+
     public void Toggle()
     {
         if (_visible)
@@ -64,7 +86,7 @@ public sealed class SizingFrameFeature : IDisposable
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_dialog);
         _dialog.Activate();
         _frame!.Show();
-        RegisterEscHotkey();
+        if (_state.HideWithEsc) RegisterEscHotkey();
         _visible = true;
         Logger.Info($"Frame shown: {_state.Width}x{_state.Height}");
     }
@@ -253,7 +275,7 @@ public sealed class SizingFrameFeature : IDisposable
         _escHotkey = null;
         bool? result;
         try { result = dlg.ShowDialog(); }
-        finally { if (_visible) RegisterEscHotkey(); }
+        finally { if (_visible && _state.HideWithEsc) RegisterEscHotkey(); }
 
         if (result == true && _dialog != null)
         {

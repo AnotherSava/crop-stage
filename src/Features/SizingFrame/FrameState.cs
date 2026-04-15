@@ -45,6 +45,16 @@ public sealed class FrameState
         get => _data.Filename;
         set { if (_data.Filename == value) return; _data.Filename = value; Save(); }
     }
+    public bool HideWithEsc
+    {
+        get => _data.HideWithEsc;
+        set { if (_data.HideWithEsc == value) return; _data.HideWithEsc = value; Save(); }
+    }
+    public bool StartWithWindowsInitialized
+    {
+        get => _data.StartWithWindowsInitialized;
+        set { if (_data.StartWithWindowsInitialized == value) return; _data.StartWithWindowsInitialized = value; Save(); }
+    }
 
     public string ResolvedFolder => AppConfig.ExpandEnvironmentVariables(_data.Folder);
 
@@ -98,5 +108,7 @@ public sealed class FrameState
         [JsonPropertyName("height")] public int Height { get; set; }
         [JsonPropertyName("folder")] public string Folder { get; set; } = "";
         [JsonPropertyName("filename")] public string Filename { get; set; } = "";
+        [JsonPropertyName("hideWithEsc")] public bool HideWithEsc { get; set; } = true;
+        [JsonPropertyName("startWithWindowsInitialized")] public bool StartWithWindowsInitialized { get; set; }
     }
 }
