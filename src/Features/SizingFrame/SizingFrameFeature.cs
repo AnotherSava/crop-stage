@@ -93,7 +93,12 @@ public sealed class SizingFrameFeature : IDisposable
     {
         EnsureWindows();
         _dialog!.SetFields(_state.Width, _state.Height, _state.Folder, _state.Filename);
-        PlaceDialogAndFrameCentered();
+
+        if (_state.Left.HasValue && _state.Top.HasValue)
+            PlaceAtSavedPosition(_state.Left.Value, _state.Top.Value);
+        else
+            PlaceDialogAndFrameCentered();
+
         _dialog.Show();
         // Forward keyboard messages from the WinForms message pump into WPF's input system.
         // Without this, WPF receives WM_KEYDOWN but never the WM_CHAR that TextInput needs,
@@ -110,11 +115,20 @@ public sealed class SizingFrameFeature : IDisposable
     {
         // Commit any pending textbox edits before hiding so typed values aren't lost.
         OnCommitRequested(this, EventArgs.Empty);
+        SavePosition();
         _escHotkey?.Dispose();
         _escHotkey = null;
         _dialog?.Hide();
         _frame?.Hide();
         _visible = false;
+    }
+
+    private void SavePosition()
+    {
+        if (_dialog == null || _frame == null) return;
+        var (leftPx, topPx) = GetInteriorOriginPx(_state.Height);
+        _state.Left = leftPx;
+        _state.Top = topPx;
     }
 
     private void RegisterEscHotkey()
@@ -190,6 +204,65 @@ public sealed class SizingFrameFeature : IDisposable
         var interiorTopPx = compTopPx + borderTpx;
 
         UpdateFrameGeometry(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx);
+    }
+
+    private void PlaceAtSavedPosition(int savedLeftPx, int savedTopPx)
+    {
+        var interiorWidthPx = _state.Width;
+        var interiorHeightPx = _state.Height;
+        var borderTpx = _config.FrameBorderThickness;
+        var dpi = AppUtilities.GetPrimaryDpiScale();
+        var dialogLeftPx = savedLeftPx - borderTpx;
+        var dialogTopPx = savedTopPx + interiorHeightPx + borderTpx;
+
+        var frameOnScreen = IsRectFullyOnScreen(savedLeftPx, savedTopPx, interiorWidthPx, interiorHeightPx);
+
+        // Try full dialog at saved position — ensure expanded mode before measuring.
+        _dialog!.SetCompactMode(false);
+        var (fullW, fullH) = MeasureDialogFresh();
+        var fullDialogWidthPx = (int)Math.Round(fullW * dpi);
+        var fullDialogHeightPx = (int)Math.Round(fullH * dpi);
+        var fullDialogOnScreen = IsRectFullyOnScreen(dialogLeftPx, dialogTopPx, fullDialogWidthPx, fullDialogHeightPx);
+        if (frameOnScreen && fullDialogOnScreen)
+        {
+            PlaceAtPosition(savedLeftPx, savedTopPx, dpi);
+            return;
+        }
+
+        // Try compact dialog at saved position
+        _dialog.SetCompactMode(true);
+        var (compW, compH) = MeasureDialogFresh();
+        var compactDialogWidthPx = (int)Math.Round(compW * dpi);
+        var compactDialogHeightPx = (int)Math.Round(compH * dpi);
+        var compactDialogOnScreen = IsRectFullyOnScreen(dialogLeftPx, dialogTopPx, compactDialogWidthPx, compactDialogHeightPx);
+        if (frameOnScreen && compactDialogOnScreen)
+        {
+            PlaceAtPosition(savedLeftPx, savedTopPx, dpi);
+            return;
+        }
+
+        // Nothing fits — center on primary with full dialog
+        _dialog.SetCompactMode(false);
+        PlaceDialogAndFrameCentered();
+    }
+
+    private void PlaceAtPosition(int interiorLeftPx, int interiorTopPx, double dpi)
+    {
+        var borderTpx = _config.FrameBorderThickness;
+        _dialog!.Left = (interiorLeftPx - borderTpx) / dpi;
+        _dialog.Top = (interiorTopPx + _state.Height + borderTpx) / dpi;
+        UpdateFrameGeometry(interiorLeftPx, interiorTopPx, _state.Width, _state.Height);
+    }
+
+    private (double width, double height) MeasureDialogFresh()
+    {
+        // Window.Measure() returns stale DesiredSize after the window has been shown
+        // and hidden. Measure the Content element (the Border) directly — it correctly
+        // reflects collapsed children and has no chrome (WindowStyle=None).
+        var content = (UIElement)_dialog!.Content;
+        content.InvalidateMeasure();
+        content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return (content.DesiredSize.Width, content.DesiredSize.Height);
     }
 
     private double GetDialogWidth()

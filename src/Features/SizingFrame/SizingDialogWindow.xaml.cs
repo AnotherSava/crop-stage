@@ -62,9 +62,21 @@ public partial class SizingDialogWindow : Window
 
     private void ToggleCompactMode()
     {
-        _isCompact = !_isCompact;
-        var expandedVis = _isCompact ? Visibility.Collapsed : Visibility.Visible;
-        var compactVis = _isCompact ? Visibility.Visible : Visibility.Collapsed;
+        ApplyCompactVisuals(!_isCompact);
+        CompactModeChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetCompactMode(bool compact)
+    {
+        if (_isCompact == compact) return;
+        ApplyCompactVisuals(compact);
+    }
+
+    private void ApplyCompactVisuals(bool compact)
+    {
+        _isCompact = compact;
+        var expandedVis = compact ? Visibility.Collapsed : Visibility.Visible;
+        var compactVis = compact ? Visibility.Visible : Visibility.Collapsed;
         SizeLabel.Visibility = expandedVis;
         SizeFields.Visibility = expandedVis;
         ExpandedToggleButton.Visibility = expandedVis;
@@ -72,8 +84,7 @@ public partial class SizingDialogWindow : Window
         FolderBox.Visibility = expandedVis;
         BrowseButton.Visibility = expandedVis;
         CompactToggleButton.Visibility = compactVis;
-        FilenameBox.Width = _isCompact ? FilenameBoxCompactWidth : FilenameBoxExpandedWidth;
-        CompactModeChanged?.Invoke(this, EventArgs.Empty);
+        FilenameBox.Width = compact ? FilenameBoxCompactWidth : FilenameBoxExpandedWidth;
     }
 
     public void SetScreenshotShortcut(string shortcut)

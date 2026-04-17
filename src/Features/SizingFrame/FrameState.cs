@@ -55,6 +55,16 @@ public sealed class FrameState
         get => _data.Resizable;
         set { if (_data.Resizable == value) return; _data.Resizable = value; Save(); }
     }
+    public int? Left
+    {
+        get => _data.Left;
+        set { if (_data.Left == value) return; _data.Left = value; Save(); }
+    }
+    public int? Top
+    {
+        get => _data.Top;
+        set { if (_data.Top == value) return; _data.Top = value; Save(); }
+    }
     public bool StartWithWindowsInitialized
     {
         get => _data.StartWithWindowsInitialized;
@@ -115,6 +125,8 @@ public sealed class FrameState
         [JsonPropertyName("filename")] public string Filename { get; set; } = "";
         [JsonPropertyName("hideWithEsc")] public bool HideWithEsc { get; set; } = true;
         [JsonPropertyName("resizable")] public bool Resizable { get; set; } = true;
+        [JsonPropertyName("left")] public int? Left { get; set; }
+        [JsonPropertyName("top")] public int? Top { get; set; }
         [JsonPropertyName("startWithWindowsInitialized")] public bool StartWithWindowsInitialized { get; set; }
     }
 }
