@@ -71,7 +71,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         _trayIconImage = AppUtilities.LoadOrCreateIcon();
 
-        var toggleFrameItem = new ToolStripMenuItem("Sizing Frame");
+        var toggleFrameItem = new ToolStripMenuItem("Show Frame");
         if (_frameHotkey.IsRegistered)
             toggleFrameItem.ShortcutKeyDisplayString = _config.FrameToggleShortcut;
         toggleFrameItem.Click += (_, _) => _frameFeature.Toggle();
@@ -82,6 +82,13 @@ public sealed class TrayApplicationContext : ApplicationContext
             Checked = _frameFeature.HideWithEsc
         };
         hideWithEscItem.CheckedChanged += (_, _) => _frameFeature.HideWithEsc = hideWithEscItem.Checked;
+
+        var allowResizeItem = new ToolStripMenuItem("Drag to Resize")
+        {
+            CheckOnClick = true,
+            Checked = _frameFeature.Resizable
+        };
+        allowResizeItem.CheckedChanged += (_, _) => _frameFeature.Resizable = allowResizeItem.Checked;
 
         _startWithWindowsItem = new ToolStripMenuItem("Start with Windows")
         {
@@ -110,10 +117,12 @@ public sealed class TrayApplicationContext : ApplicationContext
             Visible = true,
             ContextMenuStrip = new ContextMenuStrip()
         };
+        _trayIcon.ContextMenuStrip.Opening += (_, _) => toggleFrameItem.Text = _frameFeature.IsVisible ? "Hide Frame" : "Show Frame";
         _trayIcon.ContextMenuStrip.Items.AddRange(new ToolStripItem[]
         {
             toggleFrameItem,
             hideWithEscItem,
+            allowResizeItem,
             new ToolStripSeparator(),
             _startWithWindowsItem,
             openConfigItem,

@@ -23,7 +23,11 @@ public sealed class SizingFrameFeature : IDisposable
     private bool _visible;
     private bool _disposed;
     private bool _closing;
+    private bool _suppressSync;
+    private double _preResizeDialogLeft;
+    private double _preResizeDialogTop;
 
+    public bool IsVisible => _visible;
     public event EventHandler<string>? ScreenshotSaved;
 
     public SizingFrameFeature(AppConfig config)
@@ -45,6 +49,17 @@ public sealed class SizingFrameFeature : IDisposable
                 _escHotkey = null;
                 if (value) RegisterEscHotkey();
             }
+        }
+    }
+
+    public bool Resizable
+    {
+        get => _state.Resizable;
+        set
+        {
+            if (_state.Resizable == value) return;
+            _state.Resizable = value;
+            _frame?.SetResizable(value);
         }
     }
 
@@ -137,6 +152,11 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.BrowseRequested += OnBrowseRequested;
         _dialog.CompactModeChanged += OnCompactModeChanged;
         _dialog.Closing += (s, e) => { if (_closing) return; e.Cancel = true; Hide(); };
+
+        _frame.ResizeStarted += OnFrameResizeStarted;
+        _frame.FrameResizing += OnFrameResizing;
+        _frame.ResizeCompleted += OnFrameResizeCompleted;
+        _frame.SetResizable(_state.Resizable);
     }
 
     private void PlaceDialogAndFrameCentered()
@@ -213,7 +233,7 @@ public sealed class SizingFrameFeature : IDisposable
 
     private void SyncFrameToDialog(int widthPx, int heightPx)
     {
-        if (_dialog == null || _frame == null) return;
+        if (_dialog == null || _frame == null || _suppressSync) return;
         var (leftPx, topPx) = GetInteriorOriginPx(heightPx);
         UpdateFrameGeometry(leftPx, topPx, widthPx, heightPx);
     }
@@ -295,6 +315,60 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.SetFields(_state.Width, _state.Height, _state.Folder, _state.Filename);
 
         if (dimsChanged) SyncFrameToDialog();
+    }
+
+    private void OnFrameResizeStarted()
+    {
+        _escHotkey?.Dispose();
+        _escHotkey = null;
+        if (_dialog != null)
+        {
+            _preResizeDialogLeft = _dialog.Left;
+            _preResizeDialogTop = _dialog.Top;
+        }
+    }
+
+    private void OnFrameResizing(int outerLeftPx, int outerBottomPx, int interiorWidthPx, int interiorHeightPx)
+    {
+        if (_dialog == null) return;
+        _suppressSync = true;
+        try
+        {
+            var dpi = AppUtilities.GetDpiScaleForWindow(_dialog);
+            _dialog.Left = outerLeftPx / dpi;
+            _dialog.Top = outerBottomPx / dpi;
+            _dialog.SetFields(interiorWidthPx, interiorHeightPx, _dialog.FolderValue, _dialog.FilenameValue);
+        }
+        finally { _suppressSync = false; }
+    }
+
+    private void OnFrameResizeCompleted()
+    {
+        if (_visible && _state.HideWithEsc) RegisterEscHotkey();
+
+        if (_dialog == null || _frame == null) return;
+        var (w, h) = _frame.GetInteriorDimensions();
+        bool cancelled = w == _state.Width && h == _state.Height;
+        if (cancelled)
+        {
+            _suppressSync = true;
+            try
+            {
+                _dialog.Left = _preResizeDialogLeft;
+                _dialog.Top = _preResizeDialogTop;
+                _dialog.SetFields(w, h, _dialog.FolderValue, _dialog.FilenameValue);
+            }
+            finally { _suppressSync = false; }
+        }
+        else if (w > 0 && h > 0)
+        {
+            _suppressSync = true;
+            try { _dialog.SetFields(w, h, _dialog.FolderValue, _dialog.FilenameValue); }
+            finally { _suppressSync = false; }
+            _state.Width = w;
+            _state.Height = h;
+        }
+        SyncFrameToDialog();
     }
 
     private void OnBrowseRequested(object? sender, EventArgs e)
