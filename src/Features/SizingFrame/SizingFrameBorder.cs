@@ -36,6 +36,7 @@ public sealed class SizingFrameBorder : IDisposable
     private readonly int _hitPadPx;
     private readonly SolidColorBrush _brush;
     private Window? _window;
+    private Border? _hitBorder;
     private Border? _border;
     private Line? _line1;
     private Line? _line2;
@@ -157,7 +158,7 @@ public sealed class SizingFrameBorder : IDisposable
 
     private void UpdateContentDimensions(int outerWidthPx, int outerHeightPx)
     {
-        if (_window == null || _border == null || _line1 == null || _line2 == null) return;
+        if (_window == null || _hitBorder == null || _border == null || _line1 == null || _line2 == null) return;
         // Use WPF's render DPI (not the OS's current monitor DPI) — we swallow WM_DPICHANGED
         // so WPF's render DPI stays at creation. If we used the OS monitor DPI, DIP values
         // would be multiplied by WPF's stale render DPI and produce the wrong physical size:
@@ -168,6 +169,7 @@ public sealed class SizingFrameBorder : IDisposable
         var tDip = _thicknessPx / dpi;
         var pDip = _hitPadPx / dpi;
 
+        _hitBorder.BorderThickness = new Thickness(pDip + tDip + pDip);
         _border.Margin = new Thickness(pDip);
         _border.BorderThickness = new Thickness(tDip);
 
@@ -194,7 +196,14 @@ public sealed class SizingFrameBorder : IDisposable
         };
         _line1 = new Line { Stroke = _brush, Visibility = Visibility.Collapsed, SnapsToDevicePixels = true };
         _line2 = new Line { Stroke = _brush, Visibility = Visibility.Collapsed, SnapsToDevicePixels = true };
-        var grid = new Grid { Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)) };
+        _hitBorder = new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
+            Background = Brushes.Transparent,
+            SnapsToDevicePixels = true
+        };
+        var grid = new Grid();
+        grid.Children.Add(_hitBorder);
         grid.Children.Add(_border);
         grid.Children.Add(_line1);
         grid.Children.Add(_line2);
