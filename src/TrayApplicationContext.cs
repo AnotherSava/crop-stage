@@ -90,6 +90,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         };
         allowResizeItem.CheckedChanged += (_, _) => _frameFeature.Resizable = allowResizeItem.Checked;
 
+        var copyToClipboardItem = BuildClipboardModeMenu();
+
         _startWithWindowsItem = new ToolStripMenuItem("Start with Windows")
         {
             CheckOnClick = true,
@@ -123,6 +125,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             toggleFrameItem,
             hideWithEscItem,
             allowResizeItem,
+            copyToClipboardItem,
             new ToolStripSeparator(),
             _startWithWindowsItem,
             openConfigItem,
@@ -133,6 +136,30 @@ public sealed class TrayApplicationContext : ApplicationContext
         _frameFeature.ScreenshotSaved += OnScreenshotSaved;
 
         Logger.Info("Crop Stage started.");
+    }
+
+    private ToolStripMenuItem BuildClipboardModeMenu()
+    {
+        var parent = new ToolStripMenuItem("Copy to Clipboard");
+        var imageItem = new ToolStripMenuItem("Image");
+        var pathItem = new ToolStripMenuItem("Path");
+        var nothingItem = new ToolStripMenuItem("Nothing");
+
+        void Refresh()
+        {
+            var mode = _frameFeature.ClipboardMode;
+            imageItem.Checked = mode == ClipboardMode.Image;
+            pathItem.Checked = mode == ClipboardMode.Path;
+            nothingItem.Checked = mode == ClipboardMode.None;
+        }
+
+        imageItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.Image; Refresh(); };
+        pathItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.Path; Refresh(); };
+        nothingItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.None; Refresh(); };
+
+        parent.DropDownItems.AddRange(new ToolStripItem[] { imageItem, pathItem, nothingItem });
+        Refresh();
+        return parent;
     }
 
     private void OnScreenshotSaved(object? sender, string path)

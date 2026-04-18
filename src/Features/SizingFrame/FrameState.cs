@@ -4,6 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace CropStage.Features.SizingFrame;
 
+public enum ClipboardMode
+{
+    Image,
+    Path,
+    None
+}
+
 public sealed class FrameState
 {
     private static readonly string StatePath = Path.Combine(AppContext.BaseDirectory, "state.json");
@@ -11,7 +18,8 @@ public sealed class FrameState
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private readonly string _path;
@@ -69,6 +77,11 @@ public sealed class FrameState
     {
         get => _data.StartWithWindowsInitialized;
         set { if (_data.StartWithWindowsInitialized == value) return; _data.StartWithWindowsInitialized = value; Save(); }
+    }
+    public ClipboardMode ClipboardMode
+    {
+        get => _data.ClipboardMode;
+        set { if (_data.ClipboardMode == value) return; _data.ClipboardMode = value; Save(); }
     }
 
     public string ResolvedFolder => AppConfig.ExpandEnvironmentVariables(_data.Folder);
@@ -128,5 +141,6 @@ public sealed class FrameState
         [JsonPropertyName("left")] public int? Left { get; set; }
         [JsonPropertyName("top")] public int? Top { get; set; }
         [JsonPropertyName("startWithWindowsInitialized")] public bool StartWithWindowsInitialized { get; set; }
+        [JsonPropertyName("clipboardMode")] public ClipboardMode ClipboardMode { get; set; } = ClipboardMode.Path;
     }
 }

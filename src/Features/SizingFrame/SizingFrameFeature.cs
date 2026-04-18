@@ -52,6 +52,12 @@ public sealed class SizingFrameFeature : IDisposable
         }
     }
 
+    public ClipboardMode ClipboardMode
+    {
+        get => _state.ClipboardMode;
+        set => _state.ClipboardMode = value;
+    }
+
     public bool Resizable
     {
         get => _state.Resizable;
@@ -503,12 +509,39 @@ public sealed class SizingFrameFeature : IDisposable
         {
             var saved = ScreenshotCapture.Capture(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx, folder, filename);
             Logger.Info($"Screenshot saved: '{saved}'");
+            CopyToClipboard(saved);
             ScreenshotSaved?.Invoke(this, saved);
             _frame.Flash();
         }
         catch (Exception ex)
         {
             Logger.Error($"Screenshot failed: {ex.Message}");
+        }
+    }
+
+    private void CopyToClipboard(string savedPath)
+    {
+        switch (_state.ClipboardMode)
+        {
+            case ClipboardMode.Image:
+                try
+                {
+                    var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bmp.UriSource = new Uri(savedPath);
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    System.Windows.Clipboard.SetImage(bmp);
+                }
+                catch (Exception ex) { Logger.Warn($"Could not copy image to clipboard: {ex.Message}"); }
+                break;
+            case ClipboardMode.Path:
+                try { System.Windows.Clipboard.SetText(savedPath); }
+                catch (Exception ex) { Logger.Warn($"Could not copy path to clipboard: {ex.Message}"); }
+                break;
+            case ClipboardMode.None:
+                break;
         }
     }
 
