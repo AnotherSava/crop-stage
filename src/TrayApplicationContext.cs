@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows.Forms;
+using CropStage.Features.AreaSelect;
 using CropStage.Features.SizingFrame;
 
 namespace CropStage;
@@ -12,11 +13,13 @@ public sealed class TrayApplicationContext : ApplicationContext
 {
     private readonly AppConfig _config = null!;
     private readonly SizingFrameFeature _frameFeature = null!;
+    private readonly AreaSelectFeature _areaSelectFeature = null!;
     private readonly GlobalHotkey _frameHotkey = null!;
     private readonly NotifyIcon _trayIcon = null!;
     private readonly ToolStripMenuItem _startWithWindowsItem = null!;
 
     private GlobalHotkey? _screenshotHotkey;
+    private GlobalHotkey? _areaSelectHotkey;
     private Icon? _trayIconImage;
     private bool _disposed;
 
@@ -47,9 +50,10 @@ public sealed class TrayApplicationContext : ApplicationContext
             ShowConfigError(heading, detail);
             return;
         }
-        Logger.Info($"Config: frameToggleShortcut='{_config.FrameToggleShortcut}', frameBorderColor={_config.FrameBorderColor}, frameBorderThickness={_config.FrameBorderThickness}, defaultFrame={_config.DefaultFrameWidth}x{_config.DefaultFrameHeight}, defaultFolder='{_config.DefaultScreenshotFolder}', defaultFilename='{_config.DefaultScreenshotFilename}'");
+        Logger.Info($"Config: frameToggleShortcut='{_config.FrameToggleShortcut}', screenshotShortcut='{_config.ScreenshotShortcut}', areaSelectShortcut='{_config.AreaSelectShortcut}', frameBorderColor={_config.FrameBorderColor}, frameBorderThickness={_config.FrameBorderThickness}, defaultFrame={_config.DefaultFrameWidth}x{_config.DefaultFrameHeight}, defaultFolder='{_config.DefaultScreenshotFolder}', defaultFilename='{_config.DefaultScreenshotFilename}'");
 
         _frameFeature = new SizingFrameFeature(_config);
+        _areaSelectFeature = new AreaSelectFeature(_config, _frameFeature);
 
         if (!_frameFeature.StartWithWindowsInitialized)
         {
@@ -67,6 +71,13 @@ public sealed class TrayApplicationContext : ApplicationContext
             _screenshotHotkey = new GlobalHotkey(2, _config.ScreenshotShortcut, () => _frameFeature.TakeScreenshotOrShow());
             if (!_screenshotHotkey.IsRegistered)
                 Logger.Warn($"Could not register screenshot hotkey '{_config.ScreenshotShortcut}' — may be in use by Snipping Tool or another app");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_config.AreaSelectShortcut))
+        {
+            _areaSelectHotkey = new GlobalHotkey(3, _config.AreaSelectShortcut, () => _areaSelectFeature.Start());
+            if (!_areaSelectHotkey.IsRegistered)
+                Logger.Warn($"Could not register area-select hotkey '{_config.AreaSelectShortcut}' — may already be in use");
         }
 
         _trayIconImage = AppUtilities.LoadOrCreateIcon();
@@ -91,6 +102,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         allowResizeItem.CheckedChanged += (_, _) => _frameFeature.Resizable = allowResizeItem.Checked;
 
         var copyToClipboardItem = BuildClipboardModeMenu();
+        var crosshairItem = BuildCrosshairModeMenu();
 
         _startWithWindowsItem = new ToolStripMenuItem("Start with Windows")
         {
@@ -126,6 +138,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             hideWithEscItem,
             allowResizeItem,
             copyToClipboardItem,
+            crosshairItem,
             new ToolStripSeparator(),
             _startWithWindowsItem,
             openConfigItem,
@@ -158,6 +171,30 @@ public sealed class TrayApplicationContext : ApplicationContext
         nothingItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.None; Refresh(); };
 
         parent.DropDownItems.AddRange(new ToolStripItem[] { imageItem, pathItem, nothingItem });
+        Refresh();
+        return parent;
+    }
+
+    private ToolStripMenuItem BuildCrosshairModeMenu()
+    {
+        var parent = new ToolStripMenuItem("Area Select Crosshair");
+        var noneItem = new ToolStripMenuItem("None");
+        var firstItem = new ToolStripMenuItem("1st point");
+        var bothItem = new ToolStripMenuItem("Both points");
+
+        void Refresh()
+        {
+            var mode = _areaSelectFeature.CrosshairMode;
+            noneItem.Checked = mode == CrosshairMode.None;
+            firstItem.Checked = mode == CrosshairMode.FirstPoint;
+            bothItem.Checked = mode == CrosshairMode.BothPoints;
+        }
+
+        noneItem.Click += (_, _) => { _areaSelectFeature.CrosshairMode = CrosshairMode.None; Refresh(); };
+        firstItem.Click += (_, _) => { _areaSelectFeature.CrosshairMode = CrosshairMode.FirstPoint; Refresh(); };
+        bothItem.Click += (_, _) => { _areaSelectFeature.CrosshairMode = CrosshairMode.BothPoints; Refresh(); };
+
+        parent.DropDownItems.AddRange(new ToolStripItem[] { noneItem, firstItem, bothItem });
         Refresh();
         return parent;
     }
@@ -204,6 +241,8 @@ public sealed class TrayApplicationContext : ApplicationContext
             }
             _frameHotkey?.Dispose();
             _screenshotHotkey?.Dispose();
+            _areaSelectHotkey?.Dispose();
+            _areaSelectFeature?.Dispose();
             _frameFeature?.Dispose();
             _trayIconImage?.Dispose();
             Logger.Close();

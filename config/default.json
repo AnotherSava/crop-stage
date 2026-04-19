@@ -1,6 +1,7 @@
 {
   "frameToggleShortcut": "Ctrl+Shift+0",
   "screenshotShortcut": "PrintScreen",
+  "areaSelectShortcut": "Ctrl+Shift+9",
   "frameBorderColor": "#FF0000",
   "frameBorderThickness": 2,
   "defaultFrameWidth": 1280,

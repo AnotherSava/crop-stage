@@ -34,6 +34,7 @@ public sealed class AppConfig
 
     public string FrameToggleShortcut => _settings.FrameToggleShortcut;
     public string ScreenshotShortcut => _settings.ScreenshotShortcut;
+    public string AreaSelectShortcut => _settings.AreaSelectShortcut;
     public string FrameBorderColor => _settings.FrameBorderColor;
     public int FrameBorderThickness => _settings.FrameBorderThickness;
     public int DefaultFrameWidth => _settings.DefaultFrameWidth;
@@ -124,6 +125,9 @@ public sealed class SettingsData
 
     [JsonPropertyName("screenshotShortcut")]
     public string ScreenshotShortcut { get; set; } = "";
+
+    [JsonPropertyName("areaSelectShortcut")]
+    public string AreaSelectShortcut { get; set; } = "";
 
     [JsonPropertyName("frameBorderColor")]
     public string FrameBorderColor { get; set; } = "";

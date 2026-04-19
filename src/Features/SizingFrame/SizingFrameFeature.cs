@@ -1,6 +1,8 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Interop;
 
 namespace CropStage.Features.SizingFrame;
 
@@ -26,6 +28,9 @@ public sealed class SizingFrameFeature : IDisposable
     private bool _suppressSync;
     private double _preResizeDialogLeft;
     private double _preResizeDialogTop;
+    private int _pendingDialogPhysicalLeft;
+    private int _pendingDialogPhysicalTop;
+    private bool _hasPendingDialogPosition;
 
     public bool IsVisible => _visible;
     public event EventHandler<string>? ScreenshotSaved;
@@ -56,6 +61,12 @@ public sealed class SizingFrameFeature : IDisposable
     {
         get => _state.ClipboardMode;
         set => _state.ClipboardMode = value;
+    }
+
+    public CrosshairMode CrosshairMode
+    {
+        get => _state.CrosshairMode;
+        set => _state.CrosshairMode = value;
     }
 
     public bool Resizable
@@ -105,12 +116,49 @@ public sealed class SizingFrameFeature : IDisposable
         else
             PlaceDialogAndFrameCentered();
 
-        _dialog.Show();
+        ShowWindowsAtCurrentState();
+    }
+
+    public void ShowAtRect(int leftPx, int topPx, int widthPx, int heightPx)
+    {
+        _state.Width = widthPx;
+        _state.Height = heightPx;
+        _state.Left = leftPx;
+        _state.Top = topPx;
+
+        EnsureWindows();
+        _dialog!.SetFields(widthPx, heightPx, _state.Folder, _state.Filename);
+        PlaceAtSavedPosition(leftPx, topPx);
+        ShowWindowsAtCurrentState();
+    }
+
+    public void HideIfVisible()
+    {
+        if (_visible) Hide();
+    }
+
+    private void ShowWindowsAtCurrentState()
+    {
+        _dialog!.Show();
         // Forward keyboard messages from the WinForms message pump into WPF's input system.
         // Without this, WPF receives WM_KEYDOWN but never the WM_CHAR that TextInput needs,
         // so letters/digits don't appear in textboxes (only backspace/delete work).
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_dialog);
         _dialog.Activate();
+        // Pin the dialog to the exact physical pixels we computed. WPF's own Left/Top
+        // path converts DIPs using the primary-monitor DPI at Show() time, so on a
+        // non-primary-DPI monitor the dialog ends up offset from the frame. SetWindowPos
+        // bypasses that conversion.
+        if (_hasPendingDialogPosition)
+        {
+            var hwnd = new WindowInteropHelper(_dialog).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                SetWindowPos(hwnd, IntPtr.Zero, _pendingDialogPhysicalLeft, _pendingDialogPhysicalTop,
+                    0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+            _hasPendingDialogPosition = false;
+        }
         _frame!.Show();
         if (_state.HideWithEsc) RegisterEscHotkey();
         _visible = true;
@@ -203,8 +251,13 @@ public sealed class SizingFrameFeature : IDisposable
         var compTopPx = primary.Bounds.Top + Math.Max(0, (primary.Bounds.Height - compHeightPx) / 2);
 
         var frameOuterLeftPx = compLeftPx + (compWidthPx - frameOuterWidthPx) / 2;
-        _dialog!.Left = frameOuterLeftPx / dpi;
-        _dialog.Top = (compTopPx + frameOuterHeightPx) / dpi;
+        var dialogLeftPx = frameOuterLeftPx;
+        var dialogTopPx = compTopPx + frameOuterHeightPx;
+        _dialog!.Left = dialogLeftPx / dpi;
+        _dialog.Top = dialogTopPx / dpi;
+        _pendingDialogPhysicalLeft = dialogLeftPx;
+        _pendingDialogPhysicalTop = dialogTopPx;
+        _hasPendingDialogPosition = true;
 
         var interiorLeftPx = frameOuterLeftPx + borderTpx;
         var interiorTopPx = compTopPx + borderTpx;
@@ -255,8 +308,16 @@ public sealed class SizingFrameFeature : IDisposable
     private void PlaceAtPosition(int interiorLeftPx, int interiorTopPx, double dpi)
     {
         var borderTpx = _config.FrameBorderThickness;
-        _dialog!.Left = (interiorLeftPx - borderTpx) / dpi;
-        _dialog.Top = (interiorTopPx + _state.Height + borderTpx) / dpi;
+        var dialogLeftPx = interiorLeftPx - borderTpx;
+        var dialogTopPx = interiorTopPx + _state.Height + borderTpx;
+        // Set Window.Left/Top in DIPs as an initial placement hint for WPF, but
+        // queue a post-Show SetWindowPos so the dialog lands at the exact physical
+        // position regardless of per-monitor DPI mismatches.
+        _dialog!.Left = dialogLeftPx / dpi;
+        _dialog.Top = dialogTopPx / dpi;
+        _pendingDialogPhysicalLeft = dialogLeftPx;
+        _pendingDialogPhysicalTop = dialogTopPx;
+        _hasPendingDialogPosition = true;
         UpdateFrameGeometry(interiorLeftPx, interiorTopPx, _state.Width, _state.Height);
     }
 
@@ -555,4 +616,12 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog?.Close();
         _frame?.Dispose();
     }
+
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 }

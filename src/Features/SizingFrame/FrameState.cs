@@ -11,6 +11,13 @@ public enum ClipboardMode
     None
 }
 
+public enum CrosshairMode
+{
+    None,
+    FirstPoint,
+    BothPoints
+}
+
 public sealed class FrameState
 {
     private static readonly string StatePath = Path.Combine(AppContext.BaseDirectory, "state.json");
@@ -83,6 +90,11 @@ public sealed class FrameState
         get => _data.ClipboardMode;
         set { if (_data.ClipboardMode == value) return; _data.ClipboardMode = value; Save(); }
     }
+    public CrosshairMode CrosshairMode
+    {
+        get => _data.CrosshairMode;
+        set { if (_data.CrosshairMode == value) return; _data.CrosshairMode = value; Save(); }
+    }
 
     public string ResolvedFolder => AppConfig.ExpandEnvironmentVariables(_data.Folder);
 
@@ -142,5 +154,6 @@ public sealed class FrameState
         [JsonPropertyName("top")] public int? Top { get; set; }
         [JsonPropertyName("startWithWindowsInitialized")] public bool StartWithWindowsInitialized { get; set; }
         [JsonPropertyName("clipboardMode")] public ClipboardMode ClipboardMode { get; set; } = ClipboardMode.Path;
+        [JsonPropertyName("crosshairMode")] public CrosshairMode CrosshairMode { get; set; } = CrosshairMode.BothPoints;
     }
 }

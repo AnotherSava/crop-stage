@@ -20,6 +20,7 @@ dotnet test tests/CropStage.Tests.csproj
 |--------|--------|
 | `Ctrl+Shift+0` | Toggle sizing frame + dialog |
 | `PrintScreen` | Take screenshot of frame interior |
+| `Ctrl+Shift+9` | Click-drag to select an area; frame appears at the drawn rectangle |
 
 Configurable in `config.json` next to the exe.
 
@@ -31,6 +32,7 @@ Edit `config.json` next to the exe. Available options:
 |-----|---------|-------------|
 | `frameToggleShortcut` | `Ctrl+Shift+0` | Hotkey to toggle the sizing frame |
 | `screenshotShortcut` | `PrintScreen` | Hotkey to capture the frame interior |
+| `areaSelectShortcut` | `Ctrl+Shift+9` | Hotkey to enter click-drag area selection |
 | `frameBorderColor` | `#FF0000` | Frame border color (hex) |
 | `frameBorderThickness` | `2` | Frame border width in pixels |
 | `defaultFrameWidth` | `1280` | Initial frame width in pixels |
