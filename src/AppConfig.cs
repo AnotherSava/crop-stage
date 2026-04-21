@@ -35,12 +35,14 @@ public sealed class AppConfig
     public string FrameToggleShortcut => _settings.FrameToggleShortcut;
     public string ScreenshotShortcut => _settings.ScreenshotShortcut;
     public string AreaSelectShortcut => _settings.AreaSelectShortcut;
+    public string QuickSaveAreaSelectShortcut => _settings.QuickSaveAreaSelectShortcut;
     public string FrameBorderColor => _settings.FrameBorderColor;
     public int FrameBorderThickness => _settings.FrameBorderThickness;
     public int DefaultFrameWidth => _settings.DefaultFrameWidth;
     public int DefaultFrameHeight => _settings.DefaultFrameHeight;
     public string DefaultScreenshotFolder => _settings.DefaultScreenshotFolder;
     public string DefaultScreenshotFilename => _settings.DefaultScreenshotFilename;
+    public string QuickSaveFolder => _settings.QuickSaveFolder;
 
     private static SettingsData Load(string filePath)
     {
@@ -129,6 +131,9 @@ public sealed class SettingsData
     [JsonPropertyName("areaSelectShortcut")]
     public string AreaSelectShortcut { get; set; } = "";
 
+    [JsonPropertyName("quickSaveAreaSelectShortcut")]
+    public string QuickSaveAreaSelectShortcut { get; set; } = "";
+
     [JsonPropertyName("frameBorderColor")]
     public string FrameBorderColor { get; set; } = "";
 
@@ -146,4 +151,7 @@ public sealed class SettingsData
 
     [JsonPropertyName("defaultScreenshotFilename")]
     public string DefaultScreenshotFilename { get; set; } = "";
+
+    [JsonPropertyName("quickSaveFolder")]
+    public string QuickSaveFolder { get; set; } = "";
 }

@@ -2,10 +2,12 @@
   "frameToggleShortcut": "Ctrl+Shift+0",
   "screenshotShortcut": "PrintScreen",
   "areaSelectShortcut": "Ctrl+Shift+9",
+  "quickSaveAreaSelectShortcut": "Ctrl+Shift+8",
   "frameBorderColor": "#FF0000",
   "frameBorderThickness": 2,
   "defaultFrameWidth": 1280,
   "defaultFrameHeight": 800,
   "defaultScreenshotFolder": "%USERPROFILE%\\Pictures",
-  "defaultScreenshotFilename": "frame.png"
+  "defaultScreenshotFilename": "frame.png",
+  "quickSaveFolder": "%USERPROFILE%\\Pictures"
 }

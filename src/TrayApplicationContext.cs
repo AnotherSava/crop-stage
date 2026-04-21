@@ -20,6 +20,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private GlobalHotkey? _screenshotHotkey;
     private GlobalHotkey? _areaSelectHotkey;
+    private GlobalHotkey? _quickSaveAreaSelectHotkey;
     private Icon? _trayIconImage;
     private bool _disposed;
 
@@ -50,7 +51,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             ShowConfigError(heading, detail);
             return;
         }
-        Logger.Info($"Config: frameToggleShortcut='{_config.FrameToggleShortcut}', screenshotShortcut='{_config.ScreenshotShortcut}', areaSelectShortcut='{_config.AreaSelectShortcut}', frameBorderColor={_config.FrameBorderColor}, frameBorderThickness={_config.FrameBorderThickness}, defaultFrame={_config.DefaultFrameWidth}x{_config.DefaultFrameHeight}, defaultFolder='{_config.DefaultScreenshotFolder}', defaultFilename='{_config.DefaultScreenshotFilename}'");
+        Logger.Info($"Config: frameToggleShortcut='{_config.FrameToggleShortcut}', screenshotShortcut='{_config.ScreenshotShortcut}', areaSelectShortcut='{_config.AreaSelectShortcut}', quickSaveAreaSelectShortcut='{_config.QuickSaveAreaSelectShortcut}', frameBorderColor={_config.FrameBorderColor}, frameBorderThickness={_config.FrameBorderThickness}, defaultFrame={_config.DefaultFrameWidth}x{_config.DefaultFrameHeight}, defaultFolder='{_config.DefaultScreenshotFolder}', defaultFilename='{_config.DefaultScreenshotFilename}', quickSaveFolder='{_config.QuickSaveFolder}'");
 
         _frameFeature = new SizingFrameFeature(_config);
         _areaSelectFeature = new AreaSelectFeature(_config, _frameFeature);
@@ -80,12 +81,29 @@ public sealed class TrayApplicationContext : ApplicationContext
                 Logger.Warn($"Could not register area-select hotkey '{_config.AreaSelectShortcut}' — may already be in use");
         }
 
+        if (!string.IsNullOrWhiteSpace(_config.QuickSaveAreaSelectShortcut))
+        {
+            _quickSaveAreaSelectHotkey = new GlobalHotkey(4, _config.QuickSaveAreaSelectShortcut, () => _areaSelectFeature.StartQuickSave());
+            if (!_quickSaveAreaSelectHotkey.IsRegistered)
+                Logger.Warn($"Could not register quick-save area-select hotkey '{_config.QuickSaveAreaSelectShortcut}' — may already be in use");
+        }
+
         _trayIconImage = AppUtilities.LoadOrCreateIcon();
 
         var toggleFrameItem = new ToolStripMenuItem("Show Frame");
         if (_frameHotkey.IsRegistered)
             toggleFrameItem.ShortcutKeyDisplayString = _config.FrameToggleShortcut;
         toggleFrameItem.Click += (_, _) => _frameFeature.Toggle();
+
+        var areaSelectItem = new ToolStripMenuItem("Area Select");
+        if (_areaSelectHotkey?.IsRegistered == true)
+            areaSelectItem.ShortcutKeyDisplayString = _config.AreaSelectShortcut;
+        areaSelectItem.Click += (_, _) => _areaSelectFeature.Start();
+
+        var quickSaveAreaSelectItem = new ToolStripMenuItem("Quick-save Area Select");
+        if (_quickSaveAreaSelectHotkey?.IsRegistered == true)
+            quickSaveAreaSelectItem.ShortcutKeyDisplayString = _config.QuickSaveAreaSelectShortcut;
+        quickSaveAreaSelectItem.Click += (_, _) => _areaSelectFeature.StartQuickSave();
 
         var hideWithEscItem = new ToolStripMenuItem("Hide with Esc")
         {
@@ -135,6 +153,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         _trayIcon.ContextMenuStrip.Items.AddRange(new ToolStripItem[]
         {
             toggleFrameItem,
+            areaSelectItem,
+            quickSaveAreaSelectItem,
             hideWithEscItem,
             allowResizeItem,
             copyToClipboardItem,
@@ -242,6 +262,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             _frameHotkey?.Dispose();
             _screenshotHotkey?.Dispose();
             _areaSelectHotkey?.Dispose();
+            _quickSaveAreaSelectHotkey?.Dispose();
             _areaSelectFeature?.Dispose();
             _frameFeature?.Dispose();
             _trayIconImage?.Dispose();

@@ -538,6 +538,39 @@ public sealed class SizingFrameFeature : IDisposable
         }
     }
 
+    /// <summary>
+    /// Captures the given rect directly to a timestamped PNG in <paramref name="folder"/>
+    /// and updates the clipboard per the current ClipboardMode. No dialog or frame is
+    /// shown — used by the quick-save area-select flow.
+    /// </summary>
+    public void CaptureQuickSave(int leftPx, int topPx, int widthPx, int heightPx, string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            Logger.Error("Quick-save folder is empty — cannot save");
+            return;
+        }
+        if (!IsRectFullyOnScreen(leftPx, topPx, widthPx, heightPx))
+        {
+            Logger.Info("Quick-save skipped: rect is not fully on-screen");
+            return;
+        }
+
+        var resolvedFolder = AppConfig.ExpandEnvironmentVariables(folder);
+        var filename = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".png";
+        try
+        {
+            var saved = ScreenshotCapture.Capture(leftPx, topPx, widthPx, heightPx, resolvedFolder, filename);
+            Logger.Info($"Quick-save screenshot: '{saved}'");
+            CopyToClipboard(saved);
+            ScreenshotSaved?.Invoke(this, saved);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Quick-save screenshot failed: {ex.Message}");
+        }
+    }
+
     private void OnScreenshotRequested(object? sender, EventArgs e)
     {
         if (_dialog == null || _frame == null) return;

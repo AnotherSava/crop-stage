@@ -16,6 +16,7 @@ public sealed class AreaSelectFeature : IDisposable
     private AreaSelectOverlay? _overlay;
     private GlobalHotkey? _escHotkey;
     private bool _active;
+    private bool _quickSave;
     private bool _disposed;
 
     public AreaSelectFeature(AppConfig config, SizingFrameFeature frameFeature)
@@ -30,10 +31,15 @@ public sealed class AreaSelectFeature : IDisposable
         set => _frameFeature.CrosshairMode = value;
     }
 
-    public void Start()
+    public void Start() => StartInternal(quickSave: false);
+
+    public void StartQuickSave() => StartInternal(quickSave: true);
+
+    private void StartInternal(bool quickSave)
     {
         if (_active) return;
         _active = true;
+        _quickSave = quickSave;
 
         _frameFeature.HideIfVisible();
 
@@ -64,9 +70,13 @@ public sealed class AreaSelectFeature : IDisposable
 
     private void OnSelected(int leftPx, int topPx, int widthPx, int heightPx)
     {
+        var quickSave = _quickSave;
         Teardown();
-        Logger.Info($"Area selected: {widthPx}x{heightPx} at ({leftPx},{topPx})");
-        _frameFeature.ShowAtRect(leftPx, topPx, widthPx, heightPx);
+        Logger.Info($"Area selected: {widthPx}x{heightPx} at ({leftPx},{topPx}) (quickSave={quickSave})");
+        if (quickSave)
+            _frameFeature.CaptureQuickSave(leftPx, topPx, widthPx, heightPx, _config.QuickSaveFolder);
+        else
+            _frameFeature.ShowAtRect(leftPx, topPx, widthPx, heightPx);
     }
 
     private void OnCancelled()
@@ -86,6 +96,7 @@ public sealed class AreaSelectFeature : IDisposable
             _overlay = null;
         }
         _active = false;
+        _quickSave = false;
     }
 
     public void Dispose()
