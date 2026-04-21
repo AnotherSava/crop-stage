@@ -32,6 +32,11 @@ public sealed class AppConfig
         _settings = Load(settingsPath);
     }
 
+    public void Reload()
+    {
+        _settings = Load(_settingsFilePath);
+    }
+
     public string FrameToggleShortcut => _settings.FrameToggleShortcut;
     public string ScreenshotShortcut => _settings.ScreenshotShortcut;
     public string AreaSelectShortcut => _settings.AreaSelectShortcut;

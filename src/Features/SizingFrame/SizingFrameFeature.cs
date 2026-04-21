@@ -539,6 +539,20 @@ public sealed class SizingFrameFeature : IDisposable
     }
 
     /// <summary>
+    /// Hides the frame and drops cached windows so the next Show() rebuilds them
+    /// with current config values (border color/thickness, dialog shortcut label).
+    /// Used by the tray's Reload Config action.
+    /// </summary>
+    public void HideForReload()
+    {
+        if (_visible) Hide();
+        _dialog?.Close();
+        _dialog = null;
+        _frame?.Close();
+        _frame = null;
+    }
+
+    /// <summary>
     /// Captures the given rect directly to a timestamped PNG in <paramref name="folder"/>
     /// and updates the clipboard per the current ClipboardMode. No dialog or frame is
     /// shown — used by the quick-save area-select flow.

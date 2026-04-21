@@ -27,7 +27,9 @@ Configurable in `config.json` next to the exe.
 
 ## Configuration
 
-Edit `config.json` next to the exe. Available options:
+Edit `config.json` next to the exe, then pick **Reload config** from the tray **Config** submenu to apply changes without restarting the app (the same submenu also has **Open config file** and **Open config location**).
+
+Available options:
 
 | Key | Default | Description |
 |-----|---------|-------------|
