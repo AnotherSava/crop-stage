@@ -21,7 +21,7 @@ dotnet test tests/CropStage.Tests.csproj
 | `Ctrl+Shift+0` | Toggle sizing frame + dialog |
 | `PrintScreen` | Take screenshot of frame interior |
 | `Ctrl+Shift+9` | Click-drag to select an area; frame appears at the drawn rectangle |
-| `Ctrl+Shift+8` | Click-drag to select an area and immediately save it to the quick-save folder with a timestamped filename (no dialog) |
+| `Ctrl+Shift+8` | Click-drag to select an area and immediately save it to the quick-save folder (no dialog); the filename tags the timestamp with the app and window that occupy most of the shot |
 
 Configurable in `config.json` next to the exe.
 
@@ -43,7 +43,7 @@ Available options:
 | `defaultFrameHeight` | `800` | Initial frame height in pixels |
 | `defaultScreenshotFolder` | `%USERPROFILE%\Pictures` | Default save folder (supports env vars) |
 | `defaultScreenshotFilename` | `frame.png` | Default filename |
-| `quickSaveFolder` | `%USERPROFILE%\Pictures` | Folder for quick-save captures; filenames are `YYYY-MM-DD_HH-MM-SS.png` (supports env vars) |
+| `quickSaveFolder` | `%USERPROFILE%\Pictures` | Folder for quick-save captures; filenames are `YYYY-MM-DD HH-MM {App} - {Window title}.png` (or bare `YYYY-MM-DD HH-MM.png` when no app window dominates the capture). Supports env vars |
 
 ## License
 

@@ -553,9 +553,10 @@ public sealed class SizingFrameFeature : IDisposable
     }
 
     /// <summary>
-    /// Captures the given rect directly to a timestamped PNG in <paramref name="folder"/>
-    /// and updates the clipboard per the current ClipboardMode. No dialog or frame is
-    /// shown — used by the quick-save area-select flow.
+    /// Captures the given rect directly to a PNG in <paramref name="folder"/>, tagging the
+    /// filename with the app/window that dominates the shot, and updates the clipboard per
+    /// the current ClipboardMode. No dialog or frame is shown — used by the quick-save
+    /// area-select flow.
     /// </summary>
     public void CaptureQuickSave(int leftPx, int topPx, int widthPx, int heightPx, string folder)
     {
@@ -571,7 +572,9 @@ public sealed class SizingFrameFeature : IDisposable
         }
 
         var resolvedFolder = AppConfig.ExpandEnvironmentVariables(folder);
-        var filename = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".png";
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH-mm");
+        var label = TopWindowFinder.FindDominantLabel(leftPx, topPx, widthPx, heightPx);
+        var filename = QuickSaveFilename.Build(timestamp, label);
         try
         {
             var saved = ScreenshotCapture.Capture(leftPx, topPx, widthPx, heightPx, resolvedFolder, filename);
