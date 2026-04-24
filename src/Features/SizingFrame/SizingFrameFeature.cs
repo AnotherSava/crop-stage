@@ -31,6 +31,7 @@ public sealed class SizingFrameFeature : IDisposable
     private int _pendingDialogPhysicalLeft;
     private int _pendingDialogPhysicalTop;
     private bool _hasPendingDialogPosition;
+    private bool _dialogInsideFrame;
 
     public bool IsVisible => _visible;
     public event EventHandler<string>? ScreenshotSaved;
@@ -145,20 +146,7 @@ public sealed class SizingFrameFeature : IDisposable
         // so letters/digits don't appear in textboxes (only backspace/delete work).
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_dialog);
         _dialog.Activate();
-        // Pin the dialog to the exact physical pixels we computed. WPF's own Left/Top
-        // path converts DIPs using the primary-monitor DPI at Show() time, so on a
-        // non-primary-DPI monitor the dialog ends up offset from the frame. SetWindowPos
-        // bypasses that conversion.
-        if (_hasPendingDialogPosition)
-        {
-            var hwnd = new WindowInteropHelper(_dialog).Handle;
-            if (hwnd != IntPtr.Zero)
-            {
-                SetWindowPos(hwnd, IntPtr.Zero, _pendingDialogPhysicalLeft, _pendingDialogPhysicalTop,
-                    0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-            }
-            _hasPendingDialogPosition = false;
-        }
+        ApplyPendingDialogPosition();
         _frame!.Show();
         if (_state.HideWithEsc) RegisterEscHotkey();
         _visible = true;
@@ -220,6 +208,7 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.BrowseRequested += OnBrowseRequested;
         _dialog.CompactModeChanged += OnCompactModeChanged;
         _dialog.DragStarting += OnDialogDragStarting;
+        _dialog.DragEnded += OnDialogDragEnded;
         _dialog.Closing += (s, e) => { if (_closing) return; e.Cancel = true; Hide(); };
 
         _frame.ResizeStarted += OnFrameResizeStarted;
@@ -259,6 +248,7 @@ public sealed class SizingFrameFeature : IDisposable
         _pendingDialogPhysicalLeft = dialogLeftPx;
         _pendingDialogPhysicalTop = dialogTopPx;
         _hasPendingDialogPosition = true;
+        _dialogInsideFrame = false;
 
         var interiorLeftPx = frameOuterLeftPx + borderTpx;
         var interiorTopPx = compTopPx + borderTpx;
@@ -270,56 +260,64 @@ public sealed class SizingFrameFeature : IDisposable
     {
         var interiorWidthPx = _state.Width;
         var interiorHeightPx = _state.Height;
-        var borderTpx = _config.FrameBorderThickness;
         var dpi = AppUtilities.GetPrimaryDpiScale();
-        var dialogLeftPx = savedLeftPx - borderTpx;
-        var dialogTopPx = savedTopPx + interiorHeightPx + borderTpx;
 
-        var frameOnScreen = IsRectFullyOnScreen(savedLeftPx, savedTopPx, interiorWidthPx, interiorHeightPx);
-
-        // Try full dialog at saved position — ensure expanded mode before measuring.
-        _dialog!.SetCompactMode(false);
-        var (fullW, fullH) = MeasureDialogFresh();
-        var fullDialogWidthPx = (int)Math.Round(fullW * dpi);
-        var fullDialogHeightPx = (int)Math.Round(fullH * dpi);
-        var fullDialogOnScreen = IsRectFullyOnScreen(dialogLeftPx, dialogTopPx, fullDialogWidthPx, fullDialogHeightPx);
-        if (frameOnScreen && fullDialogOnScreen)
+        if (!IsRectFullyOnScreen(savedLeftPx, savedTopPx, interiorWidthPx, interiorHeightPx))
         {
-            PlaceAtPosition(savedLeftPx, savedTopPx, dpi);
+            PlaceDialogAndFrameCentered();
             return;
         }
 
-        // Try compact dialog at saved position
-        _dialog.SetCompactMode(true);
-        var (compW, compH) = MeasureDialogFresh();
-        var compactDialogWidthPx = (int)Math.Round(compW * dpi);
-        var compactDialogHeightPx = (int)Math.Round(compH * dpi);
-        var compactDialogOnScreen = IsRectFullyOnScreen(dialogLeftPx, dialogTopPx, compactDialogWidthPx, compactDialogHeightPx);
-        if (frameOnScreen && compactDialogOnScreen)
-        {
-            PlaceAtPosition(savedLeftPx, savedTopPx, dpi);
-            return;
-        }
+        var (dialogW, dialogH) = MeasureDialogFresh();
+        var dialogWidthPx = (int)Math.Round(dialogW * dpi);
+        var dialogHeightPx = (int)Math.Round(dialogH * dpi);
+        var (dialogLeftPx, dialogTopPx, inside) = ComputeDialogPlacement(
+            savedLeftPx, savedTopPx, interiorWidthPx, interiorHeightPx, dialogWidthPx, dialogHeightPx);
 
-        // Nothing fits — center on primary with full dialog
-        _dialog.SetCompactMode(false);
-        PlaceDialogAndFrameCentered();
-    }
-
-    private void PlaceAtPosition(int interiorLeftPx, int interiorTopPx, double dpi)
-    {
-        var borderTpx = _config.FrameBorderThickness;
-        var dialogLeftPx = interiorLeftPx - borderTpx;
-        var dialogTopPx = interiorTopPx + _state.Height + borderTpx;
-        // Set Window.Left/Top in DIPs as an initial placement hint for WPF, but
-        // queue a post-Show SetWindowPos so the dialog lands at the exact physical
-        // position regardless of per-monitor DPI mismatches.
+        // Set WPF Left/Top in DIPs as an initial placement hint, but queue a post-Show
+        // SetWindowPos so the dialog lands at the exact physical position regardless of
+        // per-monitor DPI mismatches.
         _dialog!.Left = dialogLeftPx / dpi;
         _dialog.Top = dialogTopPx / dpi;
         _pendingDialogPhysicalLeft = dialogLeftPx;
         _pendingDialogPhysicalTop = dialogTopPx;
         _hasPendingDialogPosition = true;
-        UpdateFrameGeometry(interiorLeftPx, interiorTopPx, _state.Width, _state.Height);
+        _dialogInsideFrame = inside;
+        UpdateFrameGeometry(savedLeftPx, savedTopPx, interiorWidthPx, interiorHeightPx);
+    }
+
+    /// <summary>
+    /// Picks where the dialog should sit relative to a frame at <paramref name="interiorLeftPx"/>/
+    /// <paramref name="interiorTopPx"/>: outside-below if it fits on-screen, otherwise inside the
+    /// frame anchored at the interior bottom-left. Dialog dimensions are passed in (current mode —
+    /// placement never switches modes). Used by both <see cref="PlaceAtSavedPosition"/> and the
+    /// live resize loop so resize honors the same inside/outside decision as static placement.
+    /// </summary>
+    private (int dialogLeftPx, int dialogTopPx, bool inside) ComputeDialogPlacement(
+        int interiorLeftPx, int interiorTopPx, int interiorWidthPx, int interiorHeightPx,
+        int dialogWidthPx, int dialogHeightPx)
+    {
+        var borderTpx = _config.FrameBorderThickness;
+        var outsideLeftPx = interiorLeftPx - borderTpx;
+        var outsideTopPx = interiorTopPx + interiorHeightPx + borderTpx;
+        if (IsRectFullyOnScreen(outsideLeftPx, outsideTopPx, dialogWidthPx, dialogHeightPx))
+            return (outsideLeftPx, outsideTopPx, inside: false);
+        return (interiorLeftPx, interiorTopPx + interiorHeightPx - dialogHeightPx, inside: true);
+    }
+
+    private void ApplyPendingDialogPosition()
+    {
+        // WPF's own Left/Top path converts DIPs using the primary-monitor DPI at
+        // Show() time, so on a non-primary-DPI monitor the dialog ends up offset
+        // from the frame. SetWindowPos with physical pixels bypasses that conversion.
+        if (!_hasPendingDialogPosition || _dialog == null) return;
+        var hwnd = new WindowInteropHelper(_dialog).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            SetWindowPos(hwnd, IntPtr.Zero, _pendingDialogPhysicalLeft, _pendingDialogPhysicalTop,
+                0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        _hasPendingDialogPosition = false;
     }
 
     private (double width, double height) MeasureDialogFresh()
@@ -375,6 +373,24 @@ public sealed class SizingFrameFeature : IDisposable
         e.WarpToScreenY = interiorTopPx + _state.Height - 1;
     }
 
+    private void OnDialogDragEnded(object? sender, DragEndedEventArgs e)
+    {
+        if (_dialog == null || _frame == null) return;
+        var (interiorLeftPx, interiorTopPx) = GetInteriorOriginPx(_state.Height);
+        _state.Left = interiorLeftPx;
+        _state.Top = interiorTopPx;
+        _suppressSync = true;
+        try
+        {
+            PlaceAtSavedPosition(interiorLeftPx, interiorTopPx);
+        }
+        finally { _suppressSync = false; }
+        ApplyPendingDialogPosition();
+        // Now that the dialog is at its final inside/outside position, drop the
+        // cursor back onto it at the same offset where the user originally clicked.
+        _dialog.WarpCursorIntoDialog(e.ClickOffsetInDialogX, e.ClickOffsetInDialogY);
+    }
+
     private void OnCompactModeChanged(object? sender, EventArgs e)
     {
         // Dialog has resized — re-measure and reposition the frame so its outer-bottom-left
@@ -391,6 +407,48 @@ public sealed class SizingFrameFeature : IDisposable
     {
         if (_dialog == null || _frame == null || _suppressSync) return;
         var (leftPx, topPx) = GetInteriorOriginPx(heightPx);
+
+        // Clamp interior to the virtual screen so a drag can't push the frame past the
+        // visible area — same constraint the area-select overlay enforces on creation.
+        // If clamped, pull the dialog back so it stays anchored to the (clamped) interior.
+        var vs = SystemInformation.VirtualScreen;
+        var maxLeft = Math.Max(vs.Left, vs.Right - widthPx);
+        var maxTop = Math.Max(vs.Top, vs.Bottom - heightPx);
+        var clampedLeft = Math.Clamp(leftPx, vs.Left, maxLeft);
+        var clampedTop = Math.Clamp(topPx, vs.Top, maxTop);
+        if (clampedLeft != leftPx || clampedTop != topPx)
+        {
+            var dpi = AppUtilities.GetDpiScaleForWindow(_dialog);
+            int dialogLeftPx, dialogTopPx;
+            if (_dialogInsideFrame)
+            {
+                var dialogHeightPx = (int)Math.Round(_dialog.ActualHeight * dpi);
+                dialogLeftPx = clampedLeft;
+                dialogTopPx = clampedTop + heightPx - dialogHeightPx;
+            }
+            else
+            {
+                var borderTpx = _config.FrameBorderThickness;
+                dialogLeftPx = clampedLeft - borderTpx;
+                dialogTopPx = clampedTop + heightPx + borderTpx;
+            }
+            _suppressSync = true;
+            try
+            {
+                _dialog.Left = dialogLeftPx / dpi;
+                _dialog.Top = dialogTopPx / dpi;
+            }
+            finally { _suppressSync = false; }
+            // Drag in progress: warp the (hidden) cursor back to the clamped frame
+            // interior bottom-left so it stays glued to the dialog. Without this, the
+            // user has to back-track the full overshoot before the dialog starts
+            // moving again, which feels broken.
+            if (_dialog.IsMouseCaptured)
+                SetCursorPos(clampedLeft, clampedTop + heightPx - 1);
+            leftPx = clampedLeft;
+            topPx = clampedTop;
+        }
+
         UpdateFrameGeometry(leftPx, topPx, widthPx, heightPx);
     }
 
@@ -422,9 +480,10 @@ public sealed class SizingFrameFeature : IDisposable
     }
 
     /// <summary>
-    /// Computes the interior (top-left) corner of the frame in physical virtual-screen pixels,
-    /// using the dialog's current monitor DPI (PerMonitorV2) so the frame lines up exactly
-    /// with the dialog even across monitors.
+    /// Computes the interior (top-left) corner of the frame in physical virtual-screen pixels
+    /// from the dialog's current position. Branches on <see cref="_dialogInsideFrame"/> so the
+    /// frame lines up correctly whether the dialog sits below the frame (default) or inside it
+    /// (no-room-below fallback). Uses per-monitor DPI for multi-monitor accuracy.
     /// </summary>
     private (int leftPx, int topPx) GetInteriorOriginPx(int interiorHeightPx)
     {
@@ -432,6 +491,13 @@ public sealed class SizingFrameFeature : IDisposable
         var borderTpx = _config.FrameBorderThickness;
         var dialogLeftPx = (int)Math.Round(_dialog!.Left * dpi);
         var dialogTopPx = (int)Math.Round(_dialog.Top * dpi);
+        if (_dialogInsideFrame)
+        {
+            // Dialog's bottom-left is flush with interior's bottom-left.
+            var dialogHeightPx = (int)Math.Round(_dialog.ActualHeight * dpi);
+            return (dialogLeftPx, dialogTopPx + dialogHeightPx - interiorHeightPx);
+        }
+        // Dialog's top-left is flush with frame outer's bottom-left.
         return (dialogLeftPx + borderTpx, dialogTopPx - interiorHeightPx - borderTpx);
     }
 
@@ -490,10 +556,22 @@ public sealed class SizingFrameFeature : IDisposable
         _suppressSync = true;
         try
         {
-            var dpi = AppUtilities.GetDpiScaleForWindow(_dialog);
-            _dialog.Left = outerLeftPx / dpi;
-            _dialog.Top = outerBottomPx / dpi;
             _dialog.SetFields(interiorWidthPx, interiorHeightPx, _dialog.FolderValue, _dialog.FilenameValue);
+            // Run the same outside-vs-inside cascade as static placement on every resize
+            // tick so the dialog flips inside the moment the frame's bottom is too close
+            // to the screen edge — instead of being dragged off-screen.
+            var dpi = AppUtilities.GetDpiScaleForWindow(_dialog);
+            var borderTpx = _config.FrameBorderThickness;
+            var interiorLeftPx = outerLeftPx + borderTpx;
+            var interiorTopPx = outerBottomPx - interiorHeightPx - borderTpx;
+            var dialogWidthPx = (int)Math.Round(_dialog.ActualWidth * dpi);
+            var dialogHeightPx = (int)Math.Round(_dialog.ActualHeight * dpi);
+            var (dialogLeftPx, dialogTopPx, inside) = ComputeDialogPlacement(
+                interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx,
+                dialogWidthPx, dialogHeightPx);
+            _dialog.Left = dialogLeftPx / dpi;
+            _dialog.Top = dialogTopPx / dpi;
+            _dialogInsideFrame = inside;
         }
         finally { _suppressSync = false; }
     }
@@ -524,7 +602,18 @@ public sealed class SizingFrameFeature : IDisposable
             _state.Width = w;
             _state.Height = h;
         }
-        SyncFrameToDialog();
+        // Re-evaluate placement: a resize that pushed the bottom edge near the screen
+        // edge needs to flip the dialog inside the frame.
+        var (interiorLeftPx, interiorTopPx) = GetInteriorOriginPx(_state.Height);
+        _state.Left = interiorLeftPx;
+        _state.Top = interiorTopPx;
+        _suppressSync = true;
+        try
+        {
+            PlaceAtSavedPosition(interiorLeftPx, interiorTopPx);
+        }
+        finally { _suppressSync = false; }
+        ApplyPendingDialogPosition();
     }
 
     private void OnBrowseRequested(object? sender, EventArgs e)
@@ -629,9 +718,16 @@ public sealed class SizingFrameFeature : IDisposable
         }
         var filename = _state.Filename;
 
-        // Dialog is to the left of the frame, borders are outside the interior —
-        // nothing we own is inside the captured rect, so capture directly and flash
-        // the frame as visual confirmation.
+        // Borders are outside the interior — when the dialog is positioned outside-below,
+        // nothing we own overlaps the captured rect. When it's anchored inside the frame
+        // we have to hide it first so the dialog chrome doesn't end up baked into the shot.
+        bool hideDialog = _dialogInsideFrame;
+        if (hideDialog)
+        {
+            _dialog.Opacity = 0;
+            // Force DWM to repaint the area before BitBlt samples the screen.
+            _dialog.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+        }
         try
         {
             var saved = ScreenshotCapture.Capture(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx, folder, filename);
@@ -643,6 +739,10 @@ public sealed class SizingFrameFeature : IDisposable
         catch (Exception ex)
         {
             Logger.Error($"Screenshot failed: {ex.Message}");
+        }
+        finally
+        {
+            if (hideDialog) _dialog.Opacity = 1;
         }
     }
 
@@ -690,4 +790,8 @@ public sealed class SizingFrameFeature : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetCursorPos(int X, int Y);
 }

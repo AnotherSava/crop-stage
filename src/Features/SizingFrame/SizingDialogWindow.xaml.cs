@@ -13,6 +13,17 @@ public sealed class DragStartingEventArgs : EventArgs
     public int? WarpToScreenY { get; set; }
 }
 
+public sealed class DragEndedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Original click offset within the dialog, in physical pixels. The handler
+    /// uses this to drop the cursor back onto the dialog after re-evaluating
+    /// placement, even if the dialog moved between outside-below and inside-frame.
+    /// </summary>
+    public int ClickOffsetInDialogX { get; init; }
+    public int ClickOffsetInDialogY { get; init; }
+}
+
 public partial class SizingDialogWindow : Window
 {
     private const double FilenameBoxExpandedWidth = 192;
@@ -25,8 +36,8 @@ public partial class SizingDialogWindow : Window
     private bool _dragging;
     private int _dragAnchorOffsetX;
     private int _dragAnchorOffsetY;
-    private int _dragReturnOffsetX;
-    private int _dragReturnOffsetY;
+    private int _clickOffsetInDialogX;
+    private int _clickOffsetInDialogY;
 
     public event EventHandler? CommitRequested;
     public event EventHandler? DimensionsChanged;
@@ -34,6 +45,7 @@ public partial class SizingDialogWindow : Window
     public event EventHandler? BrowseRequested;
     public event EventHandler? CompactModeChanged;
     public event EventHandler<DragStartingEventArgs>? DragStarting;
+    public event EventHandler<DragEndedEventArgs>? DragEnded;
 
     public SizingDialogWindow()
     {
@@ -92,18 +104,18 @@ public partial class SizingDialogWindow : Window
         var windowScreenY = (int)Math.Round(Top * dpi);
         _dragAnchorOffsetX = warpX - windowScreenX;
         _dragAnchorOffsetY = warpY - windowScreenY;
-        // Remember the click's offset from the warp point (equivalently, from the frame's
-        // bottom-left interior pixel). On drag end we warp the cursor back by this same
-        // offset so it reappears at the same relative position on the moved composite.
+        // Remember the click offset within the dialog so the drag-end handler can
+        // warp the cursor back onto the dialog at the same spot — even if the dialog
+        // moved between outside-below and inside-frame as a result of re-placement.
         if (GetCursorPos(out var origin))
         {
-            _dragReturnOffsetX = origin.X - warpX;
-            _dragReturnOffsetY = origin.Y - warpY;
+            _clickOffsetInDialogX = origin.X - windowScreenX;
+            _clickOffsetInDialogY = origin.Y - windowScreenY;
         }
         else
         {
-            _dragReturnOffsetX = 0;
-            _dragReturnOffsetY = 0;
+            _clickOffsetInDialogX = 0;
+            _clickOffsetInDialogY = 0;
         }
         _dragging = true;
         // Hide the cursor BEFORE warping so the jump isn't visually perceptible.
@@ -142,14 +154,32 @@ public partial class SizingDialogWindow : Window
     {
         _dragging = false;
         if (IsMouseCaptured) ReleaseMouseCapture();
-        // Warp the cursor back to its pre-drag offset against the frame's bottom-left
-        // interior pixel BEFORE clearing OverrideCursor — otherwise the pointer briefly
-        // flashes at the warp point before it moves.
-        if (GetCursorPos(out var pt))
-            SetCursorPos(pt.X + _dragReturnOffsetX, pt.Y + _dragReturnOffsetY);
+        // Hand control to the feature: it re-evaluates inside/outside placement,
+        // moves the dialog if needed, and then warps the cursor onto the new dialog
+        // position via WarpCursorIntoDialog (using the offset we captured at click).
+        DragEnded?.Invoke(this, new DragEndedEventArgs
+        {
+            ClickOffsetInDialogX = _clickOffsetInDialogX,
+            ClickOffsetInDialogY = _clickOffsetInDialogY,
+        });
+        // Restore cursor visuals AFTER the warp so the pointer doesn't flash at the
+        // pre-warp location.
         System.Windows.Input.Mouse.OverrideCursor = null;
         ShowCursor(true);
         Opacity = 1;
+    }
+
+    /// <summary>
+    /// Warps the system cursor to the dialog's current position, offset by the
+    /// supplied (physical-pixel) values. Used after drag re-placement so the cursor
+    /// lands on the dialog regardless of whether it ended up inside or outside the frame.
+    /// </summary>
+    public void WarpCursorIntoDialog(int offsetXFromDialogLeft, int offsetYFromDialogTop)
+    {
+        var dpi = AppUtilities.GetDpiScaleForWindow(this);
+        var dialogX = (int)Math.Round(Left * dpi);
+        var dialogY = (int)Math.Round(Top * dpi);
+        SetCursorPos(dialogX + offsetXFromDialogLeft, dialogY + offsetYFromDialogTop);
     }
 
     private void ToggleCompactMode()
