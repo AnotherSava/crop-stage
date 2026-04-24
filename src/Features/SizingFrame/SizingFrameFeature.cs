@@ -219,6 +219,7 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.ScreenshotRequested += OnScreenshotRequested;
         _dialog.BrowseRequested += OnBrowseRequested;
         _dialog.CompactModeChanged += OnCompactModeChanged;
+        _dialog.DragStarting += OnDialogDragStarting;
         _dialog.Closing += (s, e) => { if (_closing) return; e.Cancel = true; Hide(); };
 
         _frame.ResizeStarted += OnFrameResizeStarted;
@@ -357,6 +358,21 @@ public sealed class SizingFrameFeature : IDisposable
     private void OnDialogLocationChanged(object? sender, EventArgs e)
     {
         SyncFrameToDialog();
+    }
+
+    /// <summary>
+    /// Reports the frame's interior bottom-left corner as the target for the dialog's
+    /// drag-start cursor warp. Puts the drag grip inside the frame so dragging downward
+    /// uses the full screen height instead of being limited by (dialog height + border).
+    /// </summary>
+    private void OnDialogDragStarting(object? sender, DragStartingEventArgs e)
+    {
+        if (_dialog == null) return;
+        var (interiorLeftPx, interiorTopPx) = GetInteriorOriginPx(_state.Height);
+        // Last pixel inside the interior is (interiorLeft, interiorTop + height - 1).
+        // interiorTop + height lands on the border line, one pixel outside.
+        e.WarpToScreenX = interiorLeftPx;
+        e.WarpToScreenY = interiorTopPx + _state.Height - 1;
     }
 
     private void OnCompactModeChanged(object? sender, EventArgs e)
