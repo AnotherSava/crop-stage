@@ -139,6 +139,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             ContextMenuStrip = new ContextMenuStrip()
         };
         _trayIcon.ContextMenuStrip.Opening += (_, _) => _toggleFrameItem.Text = _frameFeature.IsVisible ? "Hide frame" : "Show frame";
+        _trayIcon.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) _frameFeature.Toggle(); };
         _trayIcon.ContextMenuStrip.Items.AddRange(new ToolStripItem[]
         {
             _toggleFrameItem,
