@@ -32,6 +32,6 @@ src/
 
 ## Key Patterns
 
-- **Config + state**: `config.json` (shipped, user-tweakable hotkeys/colors) and `state.json` (runtime per-user state — last-used frame position/dimensions, folder, filename, and tray preferences like "Hide with Esc", "Drag to Resize", "Copy to Clipboard" mode, and "Area Select Crosshair" mode) both live next to the exe.
+- **Config + state**: `config.json` (shipped, user-tweakable hotkeys/colors) and `state.json` (runtime per-user state — last-used frame position/dimensions, folder, filename, and tray preferences like "Hide with Esc", "Drag to Resize", "Copy to Clipboard" mode, "Area Select Crosshair" mode, and "Folder mode") both live next to the exe.
 - **Startup validation**: bad config → `TaskDialog` with expandable log → `Environment.Exit(1)`.
 - **Feature folders**: each feature owns its windows, XAML, coordinator class. Shared infrastructure (AppConfig, Logger, GlobalHotkey) stays at `src/` root.

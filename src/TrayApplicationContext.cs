@@ -95,8 +95,29 @@ public sealed class TrayApplicationContext : ApplicationContext
         };
         allowResizeItem.CheckedChanged += (_, _) => _frameFeature.Resizable = allowResizeItem.Checked;
 
-        var copyToClipboardItem = BuildClipboardModeMenu();
-        var crosshairItem = BuildCrosshairModeMenu();
+        var copyToClipboardItem = BuildEnumRadioMenu(
+            "Copy to clipboard",
+            () => _frameFeature.ClipboardMode,
+            v => _frameFeature.ClipboardMode = v,
+            ("Image", ClipboardMode.Image),
+            ("Path", ClipboardMode.Path),
+            ("Nothing", ClipboardMode.None));
+
+        var crosshairItem = BuildEnumRadioMenu(
+            "Area select crosshair",
+            () => _areaSelectFeature.CrosshairMode,
+            v => _areaSelectFeature.CrosshairMode = v,
+            ("None", CrosshairMode.None),
+            ("1st point", CrosshairMode.FirstPoint),
+            ("Both points", CrosshairMode.BothPoints));
+
+        var folderModeItem = BuildEnumRadioMenu(
+            "Folder mode",
+            () => _frameFeature.FolderActivationMode,
+            v => _frameFeature.FolderActivationMode = v,
+            ("Default folder", FolderActivationMode.DefaultFolder),
+            ("Specify destination", FolderActivationMode.SpecifyDestination),
+            ("Last used", FolderActivationMode.LastUsed));
 
         _startWithWindowsItem = new ToolStripMenuItem("Start with Windows")
         {
@@ -127,6 +148,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             allowResizeItem,
             copyToClipboardItem,
             crosshairItem,
+            folderModeItem,
             new ToolStripSeparator(),
             _startWithWindowsItem,
             configItem,
@@ -139,50 +161,29 @@ public sealed class TrayApplicationContext : ApplicationContext
         Logger.Info("Crop Stage started.");
     }
 
-    private ToolStripMenuItem BuildClipboardModeMenu()
+    private static ToolStripMenuItem BuildEnumRadioMenu<TEnum>(
+        string title,
+        Func<TEnum> getCurrent,
+        Action<TEnum> setCurrent,
+        params (string label, TEnum value)[] items) where TEnum : struct, Enum
     {
-        var parent = new ToolStripMenuItem("Copy to clipboard");
-        var imageItem = new ToolStripMenuItem("Image");
-        var pathItem = new ToolStripMenuItem("Path");
-        var nothingItem = new ToolStripMenuItem("Nothing");
+        var parent = new ToolStripMenuItem(title);
+        var entries = items.Select(i => (item: new ToolStripMenuItem(i.label), i.value)).ToArray();
 
         void Refresh()
         {
-            var mode = _frameFeature.ClipboardMode;
-            imageItem.Checked = mode == ClipboardMode.Image;
-            pathItem.Checked = mode == ClipboardMode.Path;
-            nothingItem.Checked = mode == ClipboardMode.None;
+            var current = getCurrent();
+            foreach (var (item, value) in entries)
+                item.Checked = EqualityComparer<TEnum>.Default.Equals(value, current);
         }
 
-        imageItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.Image; Refresh(); };
-        pathItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.Path; Refresh(); };
-        nothingItem.Click += (_, _) => { _frameFeature.ClipboardMode = ClipboardMode.None; Refresh(); };
-
-        parent.DropDownItems.AddRange(new ToolStripItem[] { imageItem, pathItem, nothingItem });
-        Refresh();
-        return parent;
-    }
-
-    private ToolStripMenuItem BuildCrosshairModeMenu()
-    {
-        var parent = new ToolStripMenuItem("Area select crosshair");
-        var noneItem = new ToolStripMenuItem("None");
-        var firstItem = new ToolStripMenuItem("1st point");
-        var bothItem = new ToolStripMenuItem("Both points");
-
-        void Refresh()
+        foreach (var (item, value) in entries)
         {
-            var mode = _areaSelectFeature.CrosshairMode;
-            noneItem.Checked = mode == CrosshairMode.None;
-            firstItem.Checked = mode == CrosshairMode.FirstPoint;
-            bothItem.Checked = mode == CrosshairMode.BothPoints;
+            var captured = value;
+            item.Click += (_, _) => { setCurrent(captured); Refresh(); };
         }
 
-        noneItem.Click += (_, _) => { _areaSelectFeature.CrosshairMode = CrosshairMode.None; Refresh(); };
-        firstItem.Click += (_, _) => { _areaSelectFeature.CrosshairMode = CrosshairMode.FirstPoint; Refresh(); };
-        bothItem.Click += (_, _) => { _areaSelectFeature.CrosshairMode = CrosshairMode.BothPoints; Refresh(); };
-
-        parent.DropDownItems.AddRange(new ToolStripItem[] { noneItem, firstItem, bothItem });
+        parent.DropDownItems.AddRange(entries.Select(e => (ToolStripItem)e.item).ToArray());
         Refresh();
         return parent;
     }

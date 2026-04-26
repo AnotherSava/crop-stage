@@ -70,6 +70,12 @@ public sealed class SizingFrameFeature : IDisposable
         set => _state.CrosshairMode = value;
     }
 
+    public FolderActivationMode FolderActivationMode
+    {
+        get => _state.FolderActivationMode;
+        set => _state.FolderActivationMode = value;
+    }
+
     public bool Resizable
     {
         get => _state.Resizable;
@@ -140,7 +146,15 @@ public sealed class SizingFrameFeature : IDisposable
 
     private void ShowWindowsAtCurrentState()
     {
-        _dialog!.Show();
+        var initialMode = _state.FolderActivationMode switch
+        {
+            FolderActivationMode.DefaultFolder      => DialogMode.DimensionsOnly,
+            FolderActivationMode.SpecifyDestination => DialogMode.Regular,
+            FolderActivationMode.LastUsed           => _state.LastDialogMode,
+            _                                       => DialogMode.Regular,
+        };
+        _dialog!.SetMode(initialMode);
+        _dialog.Show();
         // Forward keyboard messages from the WinForms message pump into WPF's input system.
         // Without this, WPF receives WM_KEYDOWN but never the WM_CHAR that TextInput needs,
         // so letters/digits don't appear in textboxes (only backspace/delete work).
@@ -158,6 +172,7 @@ public sealed class SizingFrameFeature : IDisposable
         // Commit any pending textbox edits before hiding so typed values aren't lost.
         OnCommitRequested(this, EventArgs.Empty);
         SavePosition();
+        if (_dialog != null) _state.LastDialogMode = _dialog.Mode;
         _escHotkey?.Dispose();
         _escHotkey = null;
         _dialog?.Hide();
@@ -206,7 +221,7 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.DimensionsChanged += OnDimensionsChanged;
         _dialog.ScreenshotRequested += OnScreenshotRequested;
         _dialog.BrowseRequested += OnBrowseRequested;
-        _dialog.CompactModeChanged += OnCompactModeChanged;
+        _dialog.ModeChanged += OnModeChanged;
         _dialog.DragStarting += OnDialogDragStarting;
         _dialog.DragEnded += OnDialogDragEnded;
         _dialog.Closing += (s, e) => { if (_closing) return; e.Cancel = true; Hide(); };
@@ -391,7 +406,7 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.WarpCursorIntoDialog(e.ClickOffsetInDialogX, e.ClickOffsetInDialogY);
     }
 
-    private void OnCompactModeChanged(object? sender, EventArgs e)
+    private void OnModeChanged(object? sender, EventArgs e)
     {
         // Dialog has resized — re-measure and reposition the frame so its outer-bottom-left
         // still sits flush with the dialog's top-left.

@@ -103,6 +103,40 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="ToggleIconButton" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E8E8E8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D8D8D8"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#C8C8C8"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#A0A0A0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Border BorderBrush="#C8C8C8" BorderThickness="1">
         <Grid x:Name="RootGrid" Margin="14,6,14,6" Background="Transparent">
@@ -116,6 +150,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <!-- Size -->
@@ -125,15 +160,35 @@
                 <TextBlock Text="×" VerticalAlignment="Center" Width="12" Margin="10,0" FontSize="15" Foreground="#888"/>
                 <TextBox x:Name="HeightBox" Width="80"/>
             </StackPanel>
-            <Button Grid.Row="0" Grid.Column="2"
-                    x:Name="ExpandedToggleButton"
+            <ToggleButton Grid.Row="0" Grid.Column="2"
+                          x:Name="FolderToggleRow0"
+                          Content="&#x1F4C1;"
+                          FontFamily="Segoe UI Emoji"
+                          FontSize="14"
+                          Width="32" Height="28"
+                          Margin="8,4,0,4"
+                          Style="{StaticResource ToggleIconButton}"
+                          ToolTip="Folder"/>
+            <Button Grid.Row="0" Grid.Column="3"
+                    x:Name="ToFilenameOnlyButton"
                     Content="&#xE70E;"
                     FontFamily="Segoe MDL2 Assets"
                     FontSize="11"
                     Width="32" Height="28"
-                    Margin="8,4,0,4"
+                    Margin="6,4,0,4"
                     Style="{StaticResource GhostButton}"
-                    ToolTip="Compact mode"/>
+                    ToolTip="Filename only"/>
+            <Button Grid.Row="0" Grid.Column="4"
+                    x:Name="ScreenshotButtonRow0"
+                    Content="&#xE114;"
+                    FontFamily="Segoe MDL2 Assets"
+                    FontSize="13"
+                    Width="32" Height="28"
+                    Padding="0"
+                    Margin="6,4,0,4"
+                    Style="{StaticResource PrimaryButton}"
+                    ToolTip="Screenshot"
+                    Visibility="Collapsed"/>
 
             <!-- Folder -->
             <TextBlock x:Name="FolderLabel" Grid.Row="1" Grid.Column="0" Text="Folder" Style="{StaticResource FieldLabel}"/>
@@ -141,7 +196,7 @@
             <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseButton" Content="…" Width="32" Height="28" Margin="8,4,0,4" FontSize="14"/>
 
             <!-- Filename -->
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Filename" Style="{StaticResource FieldLabel}"/>
+            <TextBlock x:Name="FilenameLabel" Grid.Row="2" Grid.Column="0" Text="Filename" Style="{StaticResource FieldLabel}"/>
             <TextBox Grid.Row="2" Grid.Column="1" x:Name="FilenameBox" Width="192"/>
             <Button Grid.Row="2" Grid.Column="2"
                     x:Name="ScreenshotButton"
@@ -153,15 +208,25 @@
                     Margin="8,4,0,4"
                     Style="{StaticResource PrimaryButton}"
                     ToolTip="Screenshot"/>
-            <Button Grid.Row="2" Grid.Column="3"
-                    x:Name="CompactToggleButton"
+            <ToggleButton Grid.Row="2" Grid.Column="3"
+                          x:Name="FolderToggleRow2"
+                          Content="&#x1F4C1;"
+                          FontFamily="Segoe UI Emoji"
+                          FontSize="14"
+                          Width="32" Height="28"
+                          Margin="6,4,0,4"
+                          Style="{StaticResource ToggleIconButton}"
+                          ToolTip="Folder"
+                          Visibility="Collapsed"/>
+            <Button Grid.Row="2" Grid.Column="4"
+                    x:Name="ToRegularButton"
                     Content="&#xE70D;"
                     FontFamily="Segoe MDL2 Assets"
                     FontSize="11"
                     Width="32" Height="28"
                     Margin="6,4,0,4"
                     Style="{StaticResource GhostButton}"
-                    ToolTip="Expanded mode"
+                    ToolTip="Regular mode"
                     Visibility="Collapsed"/>
         </Grid>
     </Border>

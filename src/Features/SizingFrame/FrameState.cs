@@ -18,6 +18,20 @@ public enum CrosshairMode
     BothPoints
 }
 
+public enum DialogMode
+{
+    Regular,
+    FilenameOnly,
+    DimensionsOnly
+}
+
+public enum FolderActivationMode
+{
+    DefaultFolder,
+    SpecifyDestination,
+    LastUsed
+}
+
 public sealed class FrameState
 {
     private static readonly string StatePath = Path.Combine(AppContext.BaseDirectory, "state.json");
@@ -95,6 +109,16 @@ public sealed class FrameState
         get => _data.CrosshairMode;
         set { if (_data.CrosshairMode == value) return; _data.CrosshairMode = value; Save(); }
     }
+    public FolderActivationMode FolderActivationMode
+    {
+        get => _data.FolderActivationMode;
+        set { if (_data.FolderActivationMode == value) return; _data.FolderActivationMode = value; Save(); }
+    }
+    public DialogMode LastDialogMode
+    {
+        get => _data.LastDialogMode;
+        set { if (_data.LastDialogMode == value) return; _data.LastDialogMode = value; Save(); }
+    }
 
     public string ResolvedFolder => AppConfig.ExpandEnvironmentVariables(_data.Folder);
 
@@ -155,5 +179,7 @@ public sealed class FrameState
         [JsonPropertyName("startWithWindowsInitialized")] public bool StartWithWindowsInitialized { get; set; }
         [JsonPropertyName("clipboardMode")] public ClipboardMode ClipboardMode { get; set; } = ClipboardMode.Path;
         [JsonPropertyName("crosshairMode")] public CrosshairMode CrosshairMode { get; set; } = CrosshairMode.BothPoints;
+        [JsonPropertyName("folderActivationMode")] public FolderActivationMode FolderActivationMode { get; set; } = FolderActivationMode.DefaultFolder;
+        [JsonPropertyName("lastDialogMode")] public DialogMode LastDialogMode { get; set; } = DialogMode.Regular;
     }
 }

@@ -26,10 +26,10 @@ public sealed class DragEndedEventArgs : EventArgs
 
 public partial class SizingDialogWindow : Window
 {
-    private const double FilenameBoxExpandedWidth = 192;
-    private const double FilenameBoxCompactWidth = 154;
+    private const double FilenameBoxRegularWidth = 192;
+    private const double FilenameBoxFilenameOnlyWidth = 154;
 
-    private bool _isCompact;
+    private DialogMode _mode = DialogMode.Regular;
     private string _screenshotTip = "Screenshot";
     private const string OffScreenTip = "Frame is partly off-screen";
 
@@ -43,13 +43,16 @@ public partial class SizingDialogWindow : Window
     public event EventHandler? DimensionsChanged;
     public event EventHandler? ScreenshotRequested;
     public event EventHandler? BrowseRequested;
-    public event EventHandler? CompactModeChanged;
+    public event EventHandler? ModeChanged;
     public event EventHandler<DragStartingEventArgs>? DragStarting;
     public event EventHandler<DragEndedEventArgs>? DragEnded;
+
+    public DialogMode Mode => _mode;
 
     public SizingDialogWindow()
     {
         InitializeComponent();
+        ApplyLayout(_mode);
 
         WidthBox.LostFocus += (_, _) => CommitRequested?.Invoke(this, EventArgs.Empty);
         HeightBox.LostFocus += (_, _) => CommitRequested?.Invoke(this, EventArgs.Empty);
@@ -62,9 +65,12 @@ public partial class SizingDialogWindow : Window
         HeightBox.TextChanged += (_, _) => DimensionsChanged?.Invoke(this, EventArgs.Empty);
 
         ScreenshotButton.Click += (_, _) => ScreenshotRequested?.Invoke(this, EventArgs.Empty);
+        ScreenshotButtonRow0.Click += (_, _) => ScreenshotRequested?.Invoke(this, EventArgs.Empty);
         BrowseButton.Click += (_, _) => BrowseRequested?.Invoke(this, EventArgs.Empty);
-        ExpandedToggleButton.Click += (_, _) => ToggleCompactMode();
-        CompactToggleButton.Click += (_, _) => ToggleCompactMode();
+        FolderToggleRow0.Click += (_, _) => OnFolderToggleClicked();
+        FolderToggleRow2.Click += (_, _) => OnFolderToggleClicked();
+        ToFilenameOnlyButton.Click += (_, _) => SetModeAndNotify(DialogMode.FilenameOnly);
+        ToRegularButton.Click += (_, _) => SetModeAndNotify(DialogMode.Regular);
 
         MouseLeftButtonDown += OnMouseLeftButtonDown;
         PreviewMouseMove += OnPreviewMouseMove;
@@ -75,12 +81,13 @@ public partial class SizingDialogWindow : Window
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // Frameless window: drag from any non-input element (labels, background, border).
-        // Double-click on same areas toggles compact mode.
+        // Double-click on the same areas cycles Regular ↔ FilenameOnly (no-op in DimensionsOnly).
         if (e.OriginalSource is TextBlock or Border or Grid or Window)
         {
             if (e.ClickCount == 2)
             {
-                ToggleCompactMode();
+                if (_mode == DialogMode.Regular) SetModeAndNotify(DialogMode.FilenameOnly);
+                else if (_mode == DialogMode.FilenameOnly) SetModeAndNotify(DialogMode.Regular);
             }
             else
             {
@@ -182,43 +189,67 @@ public partial class SizingDialogWindow : Window
         SetCursorPos(dialogX + offsetXFromDialogLeft, dialogY + offsetYFromDialogTop);
     }
 
-    private void ToggleCompactMode()
+    public void SetMode(DialogMode mode) => ApplyLayout(mode);
+
+    private void SetModeAndNotify(DialogMode mode)
     {
-        ApplyCompactVisuals(!_isCompact);
-        CompactModeChanged?.Invoke(this, EventArgs.Empty);
+        ApplyLayout(mode);
+        ModeChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SetCompactMode(bool compact)
+    private void OnFolderToggleClicked()
     {
-        if (_isCompact == compact) return;
-        ApplyCompactVisuals(compact);
+        var target = _mode == DialogMode.DimensionsOnly ? DialogMode.Regular : DialogMode.DimensionsOnly;
+        SetModeAndNotify(target);
     }
 
-    private void ApplyCompactVisuals(bool compact)
+    private void ApplyLayout(DialogMode mode)
     {
-        _isCompact = compact;
-        var expandedVis = compact ? Visibility.Collapsed : Visibility.Visible;
-        var compactVis = compact ? Visibility.Visible : Visibility.Collapsed;
-        SizeLabel.Visibility = expandedVis;
-        SizeFields.Visibility = expandedVis;
-        ExpandedToggleButton.Visibility = expandedVis;
-        FolderLabel.Visibility = expandedVis;
-        FolderBox.Visibility = expandedVis;
-        BrowseButton.Visibility = expandedVis;
-        CompactToggleButton.Visibility = compactVis;
-        FilenameBox.Width = compact ? FilenameBoxCompactWidth : FilenameBoxExpandedWidth;
+        _mode = mode;
+        var sizeRowVis    = mode is DialogMode.Regular or DialogMode.DimensionsOnly ? Visibility.Visible : Visibility.Collapsed;
+        var folderRowVis  = mode == DialogMode.Regular                              ? Visibility.Visible : Visibility.Collapsed;
+        var filenameRowVis= mode is DialogMode.Regular or DialogMode.FilenameOnly   ? Visibility.Visible : Visibility.Collapsed;
+
+        SizeLabel.Visibility    = sizeRowVis;
+        SizeFields.Visibility   = sizeRowVis;
+        FolderToggleRow0.Visibility    = sizeRowVis;
+        ToFilenameOnlyButton.Visibility = mode == DialogMode.Regular        ? Visibility.Visible : Visibility.Collapsed;
+        ScreenshotButtonRow0.Visibility = mode == DialogMode.DimensionsOnly ? Visibility.Visible : Visibility.Collapsed;
+
+        FolderLabel.Visibility = folderRowVis;
+        FolderBox.Visibility   = folderRowVis;
+        BrowseButton.Visibility= folderRowVis;
+
+        FilenameLabel.Visibility = filenameRowVis;
+        FilenameBox.Visibility   = filenameRowVis;
+        ScreenshotButton.Visibility = filenameRowVis;
+        FolderToggleRow2.Visibility = mode == DialogMode.FilenameOnly ? Visibility.Visible : Visibility.Collapsed;
+        ToRegularButton.Visibility  = mode == DialogMode.FilenameOnly ? Visibility.Visible : Visibility.Collapsed;
+
+        var folderPressed = mode != DialogMode.DimensionsOnly;
+        FolderToggleRow0.IsChecked = folderPressed;
+        FolderToggleRow2.IsChecked = folderPressed;
+
+        FilenameBox.Width = mode == DialogMode.FilenameOnly ? FilenameBoxFilenameOnlyWidth : FilenameBoxRegularWidth;
     }
 
     public void SetScreenshotShortcut(string shortcut)
     {
         _screenshotTip = string.IsNullOrWhiteSpace(shortcut) ? "Screenshot" : $"Screenshot ({shortcut})";
-        if (ScreenshotButton.IsEnabled) ScreenshotButton.ToolTip = _screenshotTip;
+        if (ScreenshotButton.IsEnabled)
+        {
+            ScreenshotButton.ToolTip = _screenshotTip;
+            ScreenshotButtonRow0.ToolTip = _screenshotTip;
+        }
     }
 
     public void SetScreenshotEnabled(bool enabled)
     {
         ScreenshotButton.IsEnabled = enabled;
-        ScreenshotButton.ToolTip = enabled ? _screenshotTip : OffScreenTip;
+        ScreenshotButtonRow0.IsEnabled = enabled;
+        var tip = enabled ? _screenshotTip : OffScreenTip;
+        ScreenshotButton.ToolTip = tip;
+        ScreenshotButtonRow0.ToolTip = tip;
     }
 
     public int WidthValue => int.TryParse(WidthBox.Text, out var v) ? v : 0;
