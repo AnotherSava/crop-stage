@@ -4,7 +4,7 @@ Windows tray app with overlay utilities for pixel-precise layout work.
 
 ## Features
 
-- **Sizing frame + screenshot** — draggable rectangle with configurable dimensions and one-click screenshot of its interior. Useful for cropping reference shots to exact sizes.
+- **Sizing frame + screenshot** — draggable rectangle with configurable dimensions and one-click screenshot of its interior. Capture as lossless PNG or compressed WebP. Useful for cropping reference shots to exact sizes.
 - **Coordinate grid overlay** *(planned)* — per-monitor labeled grid for reading pixel positions directly off the screen.
 
 ## Build
@@ -43,7 +43,7 @@ Available options:
 | `defaultFrameHeight` | `800` | Initial frame height in pixels |
 | `defaultScreenshotFolder` | `%USERPROFILE%\Pictures` | Default save folder (supports env vars) |
 | `defaultScreenshotFilename` | `frame.png` | Default filename |
-| `quickSaveFolder` | `%USERPROFILE%\Pictures` | Folder for quick-save captures; filenames are `YYYY-MM-DD HH-MM {App} - {Window title}.png` (or bare `YYYY-MM-DD HH-MM.png` when no app window dominates the capture). Supports env vars |
+| `quickSaveFolder` | `%USERPROFILE%\Pictures` | Folder for quick-save captures; filenames are `YYYY-MM-DD HH-MM {App} - {Window title}.{png\|webp}` (or bare `YYYY-MM-DD HH-MM.{png\|webp}` when no app window dominates the capture); extension follows the **Image format** tray menu choice. Supports env vars |
 
 ## License
 

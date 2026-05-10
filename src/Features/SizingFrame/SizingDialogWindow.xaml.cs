@@ -26,10 +26,11 @@ public sealed class DragEndedEventArgs : EventArgs
 
 public partial class SizingDialogWindow : Window
 {
-    private const double FilenameBoxRegularWidth = 192;
+    private const double FilenameBoxRegularWidth = 225;
     private const double FilenameBoxFilenameOnlyWidth = 154;
 
     private DialogMode _mode = DialogMode.Regular;
+    private ClipboardMode _clipboardMode = ClipboardMode.Path;
     private string _screenshotTip = "Screenshot";
     private const string OffScreenTip = "Frame is partly off-screen";
 
@@ -44,10 +45,12 @@ public partial class SizingDialogWindow : Window
     public event EventHandler? ScreenshotRequested;
     public event EventHandler? BrowseRequested;
     public event EventHandler? ModeChanged;
+    public event EventHandler? ClipboardModeChanged;
     public event EventHandler<DragStartingEventArgs>? DragStarting;
     public event EventHandler<DragEndedEventArgs>? DragEnded;
 
     public DialogMode Mode => _mode;
+    public ClipboardMode ClipboardMode => _clipboardMode;
 
     public SizingDialogWindow()
     {
@@ -71,6 +74,11 @@ public partial class SizingDialogWindow : Window
         FolderToggleRow2.Click += (_, _) => OnFolderToggleClicked();
         ToFilenameOnlyButton.Click += (_, _) => SetModeAndNotify(DialogMode.FilenameOnly);
         ToRegularButton.Click += (_, _) => SetModeAndNotify(DialogMode.Regular);
+        ClipImageButton.Click += (_, _) =>
+            SetClipboardModeAndNotify(_clipboardMode == ClipboardMode.Image ? ClipboardMode.None : ClipboardMode.Image);
+        ClipPathButton.Click += (_, _) =>
+            SetClipboardModeAndNotify(_clipboardMode == ClipboardMode.Path ? ClipboardMode.None : ClipboardMode.Path);
+        ApplyClipboardMode(_clipboardMode);
 
         MouseLeftButtonDown += OnMouseLeftButtonDown;
         PreviewMouseMove += OnPreviewMouseMove;
@@ -197,6 +205,19 @@ public partial class SizingDialogWindow : Window
         ModeChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void ApplyClipboardMode(ClipboardMode mode)
+    {
+        _clipboardMode = mode;
+        ClipImageButton.IsChecked = mode == ClipboardMode.Image;
+        ClipPathButton.IsChecked = mode == ClipboardMode.Path;
+    }
+
+    private void SetClipboardModeAndNotify(ClipboardMode mode)
+    {
+        ApplyClipboardMode(mode);
+        ClipboardModeChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     private void OnFolderToggleClicked()
     {
         var target = _mode == DialogMode.DimensionsOnly ? DialogMode.Regular : DialogMode.DimensionsOnly;
@@ -212,6 +233,7 @@ public partial class SizingDialogWindow : Window
 
         SizeLabel.Visibility    = sizeRowVis;
         SizeFields.Visibility   = sizeRowVis;
+        ClipboardModeButtons.Visibility = sizeRowVis;
         FolderToggleRow0.Visibility    = sizeRowVis;
         ToFilenameOnlyButton.Visibility = mode == DialogMode.Regular        ? Visibility.Visible : Visibility.Collapsed;
         ScreenshotButtonRow0.Visibility = mode == DialogMode.DimensionsOnly ? Visibility.Visible : Visibility.Collapsed;

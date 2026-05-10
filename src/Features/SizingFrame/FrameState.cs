@@ -32,6 +32,12 @@ public enum FolderActivationMode
     LastUsed
 }
 
+public enum CaptureFormat
+{
+    Png,
+    Webp
+}
+
 public sealed class FrameState
 {
     private static readonly string StatePath = Path.Combine(AppContext.BaseDirectory, "state.json");
@@ -119,6 +125,11 @@ public sealed class FrameState
         get => _data.LastDialogMode;
         set { if (_data.LastDialogMode == value) return; _data.LastDialogMode = value; Save(); }
     }
+    public CaptureFormat CaptureFormat
+    {
+        get => _data.CaptureFormat;
+        set { if (_data.CaptureFormat == value) return; _data.CaptureFormat = value; Save(); }
+    }
 
     public string ResolvedFolder => AppConfig.ExpandEnvironmentVariables(_data.Folder);
 
@@ -181,5 +192,6 @@ public sealed class FrameState
         [JsonPropertyName("crosshairMode")] public CrosshairMode CrosshairMode { get; set; } = CrosshairMode.BothPoints;
         [JsonPropertyName("folderActivationMode")] public FolderActivationMode FolderActivationMode { get; set; } = FolderActivationMode.DefaultFolder;
         [JsonPropertyName("lastDialogMode")] public DialogMode LastDialogMode { get; set; } = DialogMode.Regular;
+        [JsonPropertyName("captureFormat")] public CaptureFormat CaptureFormat { get; set; } = CaptureFormat.Png;
     }
 }

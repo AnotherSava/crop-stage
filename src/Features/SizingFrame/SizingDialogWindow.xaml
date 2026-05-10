@@ -137,6 +137,33 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="SegmentToggleButton" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E8E8E8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D8D8D8"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#C8C8C8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Border BorderBrush="#C8C8C8" BorderThickness="1">
         <Grid x:Name="RootGrid" Margin="14,6,14,6" Background="Transparent">
@@ -153,12 +180,37 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Size -->
+            <!-- Size + Clipboard mode -->
             <TextBlock x:Name="SizeLabel" Grid.Row="0" Grid.Column="0" Text="Size" Style="{StaticResource FieldLabel}"/>
-            <StackPanel x:Name="SizeFields" Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
-                <TextBox x:Name="WidthBox" Width="80"/>
-                <TextBlock Text="×" VerticalAlignment="Center" Width="12" Margin="10,0" FontSize="15" Foreground="#888"/>
-                <TextBox x:Name="HeightBox" Width="80"/>
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                <StackPanel x:Name="SizeFields" Orientation="Horizontal">
+                    <TextBox x:Name="WidthBox" Width="56"/>
+                    <TextBlock Text="×" VerticalAlignment="Center" Width="12" Margin="10,0" FontSize="15" Foreground="#888"/>
+                    <TextBox x:Name="HeightBox" Width="56"/>
+                </StackPanel>
+                <Border x:Name="ClipboardModeButtons"
+                        BorderBrush="#CFCFCF"
+                        BorderThickness="1"
+                        CornerRadius="3"
+                        Margin="14,4,0,4">
+                    <StackPanel Orientation="Horizontal">
+                        <ToggleButton x:Name="ClipImageButton"
+                                      Content="&#x1F5BC;"
+                                      FontFamily="Segoe UI Emoji"
+                                      FontSize="13"
+                                      Width="32" Height="26"
+                                      Style="{StaticResource SegmentToggleButton}"
+                                      ToolTip="Image to clipboard"/>
+                        <Rectangle Width="1" Fill="#CFCFCF"/>
+                        <ToggleButton x:Name="ClipPathButton"
+                                      Content="&#x1F4C4;"
+                                      FontFamily="Segoe UI Emoji"
+                                      FontSize="13"
+                                      Width="32" Height="26"
+                                      Style="{StaticResource SegmentToggleButton}"
+                                      ToolTip="Filename to clipboard"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
             <ToggleButton Grid.Row="0" Grid.Column="2"
                           x:Name="FolderToggleRow0"
@@ -192,12 +244,12 @@
 
             <!-- Folder -->
             <TextBlock x:Name="FolderLabel" Grid.Row="1" Grid.Column="0" Text="Folder" Style="{StaticResource FieldLabel}"/>
-            <TextBox Grid.Row="1" Grid.Column="1" x:Name="FolderBox" Width="192"/>
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="FolderBox" Width="225"/>
             <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseButton" Content="…" Width="32" Height="28" Margin="8,4,0,4" FontSize="14"/>
 
             <!-- Filename -->
             <TextBlock x:Name="FilenameLabel" Grid.Row="2" Grid.Column="0" Text="Filename" Style="{StaticResource FieldLabel}"/>
-            <TextBox Grid.Row="2" Grid.Column="1" x:Name="FilenameBox" Width="192"/>
+            <TextBox Grid.Row="2" Grid.Column="1" x:Name="FilenameBox" Width="225"/>
             <Button Grid.Row="2" Grid.Column="2"
                     x:Name="ScreenshotButton"
                     Content="&#xE114;"

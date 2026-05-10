@@ -61,7 +61,12 @@ public sealed class SizingFrameFeature : IDisposable
     public ClipboardMode ClipboardMode
     {
         get => _state.ClipboardMode;
-        set => _state.ClipboardMode = value;
+        set
+        {
+            if (_state.ClipboardMode == value) return;
+            _state.ClipboardMode = value;
+            _dialog?.ApplyClipboardMode(value);
+        }
     }
 
     public CrosshairMode CrosshairMode
@@ -74,6 +79,22 @@ public sealed class SizingFrameFeature : IDisposable
     {
         get => _state.FolderActivationMode;
         set => _state.FolderActivationMode = value;
+    }
+
+    public CaptureFormat CaptureFormat
+    {
+        get => _state.CaptureFormat;
+        set
+        {
+            if (_state.CaptureFormat == value) return;
+            _state.CaptureFormat = value;
+            // Filename's extension follows the format so the dialog reflects what will be written.
+            var newExt = ScreenshotCapture.GetExtension(value);
+            var stem = Path.GetFileNameWithoutExtension(_state.Filename);
+            _state.Filename = stem + newExt;
+            if (_dialog != null)
+                _dialog.SetFields(_dialog.WidthValue, _dialog.HeightValue, _dialog.FolderValue, _state.Filename);
+        }
     }
 
     public bool Resizable
@@ -222,9 +243,11 @@ public sealed class SizingFrameFeature : IDisposable
         _dialog.ScreenshotRequested += OnScreenshotRequested;
         _dialog.BrowseRequested += OnBrowseRequested;
         _dialog.ModeChanged += OnModeChanged;
+        _dialog.ClipboardModeChanged += (_, _) => _state.ClipboardMode = _dialog.ClipboardMode;
         _dialog.DragStarting += OnDialogDragStarting;
         _dialog.DragEnded += OnDialogDragEnded;
         _dialog.Closing += (s, e) => { if (_closing) return; e.Cancel = true; Hide(); };
+        _dialog.ApplyClipboardMode(_state.ClipboardMode);
 
         _frame.ResizeStarted += OnFrameResizeStarted;
         _frame.FrameResizing += OnFrameResizing;
@@ -541,11 +564,12 @@ public sealed class SizingFrameFeature : IDisposable
 
         var filename = _dialog.FilenameValue;
         filename = string.IsNullOrWhiteSpace(filename) ? _config.DefaultScreenshotFilename : filename;
-        // Strip directory components and force .png extension — capture always writes PNG.
+        // Strip directory components and force the current format's extension.
         filename = Path.GetFileName(filename);
+        var requiredExt = ScreenshotCapture.GetExtension(_state.CaptureFormat);
         var ext = Path.GetExtension(filename);
-        if (!string.Equals(ext, ".png", StringComparison.OrdinalIgnoreCase))
-            filename = Path.ChangeExtension(filename, ".png");
+        if (!string.Equals(ext, requiredExt, StringComparison.OrdinalIgnoreCase))
+            filename = Path.ChangeExtension(filename, requiredExt);
         _state.Filename = filename;
 
         // Push normalized values back so the UI never shows a blank when a default is in effect.
@@ -692,12 +716,11 @@ public sealed class SizingFrameFeature : IDisposable
         }
 
         var resolvedFolder = AppConfig.ExpandEnvironmentVariables(folder);
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH-mm");
         var label = TopWindowFinder.FindDominantLabel(leftPx, topPx, widthPx, heightPx);
-        var filename = QuickSaveFilename.Build(timestamp, label);
+        var filename = QuickSaveFilename.Build(label, _state.CaptureFormat);
         try
         {
-            var saved = ScreenshotCapture.Capture(leftPx, topPx, widthPx, heightPx, resolvedFolder, filename);
+            var saved = ScreenshotCapture.Capture(leftPx, topPx, widthPx, heightPx, resolvedFolder, filename, _state.CaptureFormat);
             Logger.Info($"Quick-save screenshot: '{saved}'");
             CopyToClipboard(saved);
             ScreenshotSaved?.Invoke(this, saved);
@@ -725,13 +748,26 @@ public sealed class SizingFrameFeature : IDisposable
             return;
         }
 
-        var folder = _state.ResolvedFolder;
+        // DimensionsOnly mode hides both folder and filename rows — fall back to the
+        // quick-save flow's settings: QuickSaveFolder + auto-generated timestamp+label
+        // filename, same as the Ctrl+Shift+8 area-select capture.
+        string folder, filename;
+        if (_dialog.Mode == DialogMode.DimensionsOnly)
+        {
+            folder = AppConfig.ExpandEnvironmentVariables(_config.QuickSaveFolder);
+            var label = TopWindowFinder.FindDominantLabel(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx);
+            filename = QuickSaveFilename.Build(label, _state.CaptureFormat);
+        }
+        else
+        {
+            folder = _state.ResolvedFolder;
+            filename = _state.Filename;
+        }
         if (string.IsNullOrWhiteSpace(folder))
         {
             Logger.Error("Screenshot folder is empty — cannot save");
             return;
         }
-        var filename = _state.Filename;
 
         // Borders are outside the interior — when the dialog is positioned outside-below,
         // nothing we own overlaps the captured rect. When it's anchored inside the frame
@@ -745,7 +781,7 @@ public sealed class SizingFrameFeature : IDisposable
         }
         try
         {
-            var saved = ScreenshotCapture.Capture(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx, folder, filename);
+            var saved = ScreenshotCapture.Capture(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx, folder, filename, _state.CaptureFormat);
             Logger.Info($"Screenshot saved: '{saved}'");
             CopyToClipboard(saved);
             ScreenshotSaved?.Invoke(this, saved);

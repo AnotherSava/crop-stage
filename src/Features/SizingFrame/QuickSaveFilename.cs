@@ -10,12 +10,18 @@ internal static class QuickSaveFilename
 
     private static readonly Regex WhitespaceRuns = new(@"\s+", RegexOptions.Compiled);
 
-    internal static string Build(string timestamp, string? label)
+    internal const string TimestampFormat = "yyyy-MM-dd HH-mm";
+
+    internal static string Build(string? label, CaptureFormat format) =>
+        Build(DateTime.Now.ToString(TimestampFormat), label, format);
+
+    internal static string Build(string timestamp, string? label, CaptureFormat format)
     {
+        var ext = ScreenshotCapture.GetExtension(format);
         var cleaned = Sanitize(label);
         return cleaned.Length == 0
-            ? $"{timestamp}.png"
-            : $"{timestamp} {cleaned}.png";
+            ? $"{timestamp}{ext}"
+            : $"{timestamp} {cleaned}{ext}";
     }
 
     internal static string Sanitize(string? title)

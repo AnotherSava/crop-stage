@@ -103,6 +103,13 @@ public sealed class TrayApplicationContext : ApplicationContext
             ("Path", ClipboardMode.Path),
             ("Nothing", ClipboardMode.None));
 
+        var imageFormatItem = BuildEnumRadioMenu(
+            "Image format",
+            () => _frameFeature.CaptureFormat,
+            v => _frameFeature.CaptureFormat = v,
+            ("PNG (lossless)", CaptureFormat.Png),
+            ("WebP (compressed)", CaptureFormat.Webp));
+
         var crosshairItem = BuildEnumRadioMenu(
             "Area select crosshair",
             () => _areaSelectFeature.CrosshairMode,
@@ -148,6 +155,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             hideWithEscItem,
             allowResizeItem,
             copyToClipboardItem,
+            imageFormatItem,
             crosshairItem,
             folderModeItem,
             new ToolStripSeparator(),
@@ -185,6 +193,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
 
         parent.DropDownItems.AddRange(entries.Select(e => (ToolStripItem)e.item).ToArray());
+        parent.DropDownOpening += (_, _) => Refresh();
         Refresh();
         return parent;
     }

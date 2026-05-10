@@ -69,9 +69,9 @@ public class QuickSaveFilenameTests
     [Fact]
     public void BuildReturnsBareTimestampWhenLabelMissing()
     {
-        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", null));
-        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", ""));
-        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", "   "));
+        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", null, CaptureFormat.Png));
+        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", "", CaptureFormat.Png));
+        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", "   ", CaptureFormat.Png));
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class QuickSaveFilenameTests
     {
         Assert.Equal(
             "2026-04-20 14-35 chrome Google Chrome.png",
-            QuickSaveFilename.Build("2026-04-20 14-35", "chrome Google Chrome"));
+            QuickSaveFilename.Build("2026-04-20 14-35", "chrome Google Chrome", CaptureFormat.Png));
     }
 
     [Fact]
@@ -87,12 +87,21 @@ public class QuickSaveFilenameTests
     {
         Assert.Equal(
             "2026-04-20 14-35 bad chars.png",
-            QuickSaveFilename.Build("2026-04-20 14-35", "bad<>chars"));
+            QuickSaveFilename.Build("2026-04-20 14-35", "bad<>chars", CaptureFormat.Png));
     }
 
     [Fact]
     public void BuildReturnsBareTimestampWhenLabelIsOnlyInvalidChars()
     {
-        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", "<<>>||??"));
+        Assert.Equal("2026-04-20 14-35.png", QuickSaveFilename.Build("2026-04-20 14-35", "<<>>||??", CaptureFormat.Png));
+    }
+
+    [Fact]
+    public void BuildUsesWebpExtensionForWebpFormat()
+    {
+        Assert.Equal("2026-04-20 14-35.webp", QuickSaveFilename.Build("2026-04-20 14-35", null, CaptureFormat.Webp));
+        Assert.Equal(
+            "2026-04-20 14-35 chrome.webp",
+            QuickSaveFilename.Build("2026-04-20 14-35", "chrome", CaptureFormat.Webp));
     }
 }
