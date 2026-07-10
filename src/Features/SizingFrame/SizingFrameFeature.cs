@@ -698,11 +698,12 @@ public sealed class SizingFrameFeature : IDisposable
 
     /// <summary>
     /// Captures the given rect directly to a PNG in <paramref name="folder"/>, tagging the
-    /// filename with the app/window that dominates the shot, and updates the clipboard per
-    /// the current ClipboardMode. No dialog or frame is shown — used by the quick-save
-    /// area-select flow.
+    /// filename with the app/window that dominates the shot, and updates the clipboard using
+    /// <paramref name="clipboardMode"/> (the effective mode chosen during area select, which
+    /// may differ from the saved tray setting when the user held Shift). No dialog or frame is
+    /// shown — used by the quick-save area-select flow.
     /// </summary>
-    public void CaptureQuickSave(int leftPx, int topPx, int widthPx, int heightPx, string folder)
+    public void CaptureQuickSave(int leftPx, int topPx, int widthPx, int heightPx, string folder, ClipboardMode clipboardMode)
     {
         if (string.IsNullOrWhiteSpace(folder))
         {
@@ -721,8 +722,8 @@ public sealed class SizingFrameFeature : IDisposable
         try
         {
             var saved = ScreenshotCapture.Capture(leftPx, topPx, widthPx, heightPx, resolvedFolder, filename, _state.CaptureFormat);
-            Logger.Info($"Quick-save screenshot: '{saved}'");
-            CopyToClipboard(saved);
+            Logger.Info($"Quick-save screenshot: '{saved}' (clipboard={clipboardMode})");
+            CopyToClipboard(saved, clipboardMode);
             ScreenshotSaved?.Invoke(this, saved);
         }
         catch (Exception ex)
@@ -783,7 +784,7 @@ public sealed class SizingFrameFeature : IDisposable
         {
             var saved = ScreenshotCapture.Capture(interiorLeftPx, interiorTopPx, interiorWidthPx, interiorHeightPx, folder, filename, _state.CaptureFormat);
             Logger.Info($"Screenshot saved: '{saved}'");
-            CopyToClipboard(saved);
+            CopyToClipboard(saved, _state.ClipboardMode);
             ScreenshotSaved?.Invoke(this, saved);
             _frame.Flash();
         }
@@ -797,9 +798,9 @@ public sealed class SizingFrameFeature : IDisposable
         }
     }
 
-    private void CopyToClipboard(string savedPath)
+    private void CopyToClipboard(string savedPath, ClipboardMode mode)
     {
-        switch (_state.ClipboardMode)
+        switch (mode)
         {
             case ClipboardMode.Image:
                 try

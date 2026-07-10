@@ -62,7 +62,10 @@ public sealed class AreaSelectFeature : IDisposable
             _escHotkey = null;
         }
 
-        _overlay = new AreaSelectOverlay(_config, _frameFeature.CrosshairMode);
+        // Only the quick-save flow copies to the clipboard immediately, so only it shows the
+        // clipboard hint + Shift toggle. The regular flow's clipboard mode is chosen later at
+        // the sizing-frame dialog.
+        _overlay = new AreaSelectOverlay(_config, _frameFeature.CrosshairMode, quickSave, _frameFeature.ClipboardMode);
         _overlay.Selected += OnSelected;
         _overlay.Cancelled += OnCancelled;
         _overlay.Show();
@@ -71,10 +74,12 @@ public sealed class AreaSelectFeature : IDisposable
     private void OnSelected(int leftPx, int topPx, int widthPx, int heightPx)
     {
         var quickSave = _quickSave;
+        // Read the overlay's effective clipboard mode (base ± Shift) before Teardown clears it.
+        var clipboardMode = _overlay?.EffectiveClipboardMode ?? _frameFeature.ClipboardMode;
         Teardown();
         Logger.Info($"Area selected: {widthPx}x{heightPx} at ({leftPx},{topPx}) (quickSave={quickSave})");
         if (quickSave)
-            _frameFeature.CaptureQuickSave(leftPx, topPx, widthPx, heightPx, _config.QuickSaveFolder);
+            _frameFeature.CaptureQuickSave(leftPx, topPx, widthPx, heightPx, _config.QuickSaveFolder, clipboardMode);
         else
             _frameFeature.ShowAtRect(leftPx, topPx, widthPx, heightPx);
     }

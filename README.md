@@ -21,7 +21,7 @@ dotnet test tests/CropStage.Tests.csproj
 | `Ctrl+Shift+0` | Toggle sizing frame + dialog |
 | `PrintScreen` | Take screenshot of frame interior |
 | `Ctrl+Shift+9` | Click-drag to select an area; frame appears at the drawn rectangle |
-| `Ctrl+Shift+8` | Click-drag to select an area and immediately save it to the quick-save folder (no dialog); the filename tags the timestamp with the app and window that occupy most of the shot |
+| `Ctrl+Shift+8` | Click-drag to select an area and immediately save it to the quick-save folder (no dialog); the filename tags the timestamp with the app and window that occupy most of the shot. A hint shows whether the saved file's **path** or the **image** is copied to the clipboard — hold **Shift** while selecting to toggle |
 
 Configurable in `config.json` next to the exe.
 
