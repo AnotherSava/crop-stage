@@ -19,6 +19,3 @@ config/deploy.env
 
 # Local dev config (overrides default.json on deploy)
 config/local.json
-
-# Dev scripts
-scripts/
