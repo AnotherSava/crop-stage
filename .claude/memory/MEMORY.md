@@ -1,0 +1,6 @@
+- [Project context](project_context.md) — .NET 10 tray+overlay app replacing old Python+AHK toolbox/overlay_grid; watch for Grammarly as focus-lag cause
+- [Auto-deploy after code changes](feedback_auto_deploy.md) — run deploy automatically in fix→test loops; don't ask first
+- [WPF+WinForms keyboard interop](project_wpf_winforms_keyboard_interop.md) — modeless WPF dialogs in WinForms tray apps need ElementHost.EnableModelessKeyboardInterop or text input silently fails
+- [Sizing frame DPI/topmost design](project_sizing_frame_dpi.md) — why single transparent window, why swallow WM_DPICHANGED, why re-assert HWND_TOPMOST; layered window alpha hit-testing
+- [Drag-to-resize design](project_resize_design.md) — WS_THICKFRAME approach, Esc hotkey management during resize, _suppressSync pattern
+- [Drag-to-move design](project_drag_move_design.md) — custom drag loop + cursor warp into frame's interior bottom-left pixel; why not DragMove; hide/restore sequence

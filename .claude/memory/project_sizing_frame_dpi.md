@@ -1,0 +1,25 @@
+---
+name: Sizing frame DPI/topmost design decisions
+description: Rationale for the SizingFrameBorder's single-transparent-window design, WM_DPICHANGED swallow, and HWND_TOPMOST re-assertion — plus what was tried and rejected
+type: project
+---
+The sizing frame (`src/Features/SizingFrame/SizingFrameBorder.cs`) is a single transparent topmost WPF window containing a `Border` + two `Line` shapes (diagonals), shown/hidden via `Visibility`. The app runs in `HighDpiMode.PerMonitorV2`. This design is the result of several iterations — the rationale below is worth reading before changing any of it.
+
+**Why a single transparent window (not 4 opaque edges):** earlier iterations used 4 thin opaque windows (top/bottom/left/right) to avoid `AllowsTransparency="True"`, on a belief that DWM alpha recomposition would be costly. In practice the cost is negligible for this surface and the 4-edge approach has its own problems:
+- Pixel-exact alignment across mixed-DPI monitors required `SetWindowPos` with physical pixels per edge, and still left visible gaps during transition.
+- The diagonal X indicator (for "frame is off-screen") couldn't be drawn with axis-aligned rectangles, forcing a separate transparent overlay window anyway.
+- More code with no measurable benefit.
+
+**Why `WM_DPICHANGED` is swallowed on the frame window (but not the dialog):** When the frame's center crosses a DPI boundary, WPF auto-rescales to DIP-preserving bounds (same DIPs, new physical size). The next `SyncFrameToDialog` corrects the physical size — but between the two there's a flash. Swallowing `WM_DPICHANGED` via an `HwndSource` hook (`handled = true`) keeps WPF at its original render DPI for the frame's lifetime. The content is a solid border + diagonals; DWM bitmap-stretches on other monitors invisibly. Don't add a "restore position" or "restore bounds" handler — that caused oscillation in earlier attempts (OS keeps firing `WM_DPICHANGED` because our restore flips the window's primary monitor back).
+
+**Why `VisualTreeHelper.GetDpi(_window)` in `UpdateContentDimensions`, not `AppUtilities.GetDpiScaleForWindow(_window)`:** Because the frame swallows `WM_DPICHANGED`, WPF's render DPI stays at creation time. `VisualTreeHelper.GetDpi` returns that. `GetDpiScaleForWindow` uses `GetDpiForMonitor` which returns the OS's current monitor DPI — divergent after the frame moves to a different-DPI monitor. Using the OS DPI made `BorderThickness` in DIPs × WPF's stale render DPI = thicker than intended physical pixels, so the border bled inward into the captured screenshot region. The dialog still uses `GetDpiScaleForWindow` (it doesn't swallow, so WPF's DPI tracks the OS).
+
+**Why `HWND_TOPMOST` is re-asserted on `Show()` and every geometry update:** The frame has `WS_EX_NOACTIVATE` (so clicks pass through) — such windows never participate in foreground activation and get demoted below non-topmost windows over time. Re-asserting via `SetWindowPos(hwnd, HWND_TOPMOST, ..., SWP_NOACTIVATE)` on every drag-driven geometry update keeps it on top. The dialog doesn't need this (activatable, stays on top via normal Topmost).
+
+**Why PerMonitorV2 (not SystemAware or DpiUnaware):** Tried both. `SystemAware` applies DWM virtualization at monitor boundaries so the dialog's logical rect stops matching its visible rect on non-primary monitors — the frame (positioned via `SetWindowPos` in physical pixels) then visually detaches from the dialog's visible edges. `DpiUnaware` gives continuous per-monitor scaling but blurs dialog text. PerMonitorV2 is the cleanest tradeoff: crisp content on each monitor, with a single visible rescale at boundary crossings (same behavior as File Explorer).
+
+**Don't try to make crossings "gradual":** WPF renders a window at one DPI at a time. There is no mode in which parts of the same window render at different DPIs. A rescale at the boundary is unavoidable; any attempt to suppress it for *both* dialog and frame will create feedback loops. The user can be told this is how Windows' own windows work.
+
+**Why `Esc` uses a Win32 `RegisterHotKey` (not `KeyDown`) and is scoped to when dialog is visible:** see `SizingFrameFeature.RegisterEscHotkey`. Win32 hotkey works regardless of focus; gated by the "Hide with Esc" tray toggle (persisted in `state.json`) so users who want Esc for other things can opt out.
+
+**Layered window alpha-channel hit testing (AllowsTransparency=true):** The window manager uses the alpha channel of layered windows for hit testing BEFORE sending WM_NCHITTEST. Pixels with alpha=0 are skipped entirely — the system never sends WM_NCHITTEST and passes input to windows below, even in other processes. Pixels with alpha > 0 trigger WM_NCHITTEST. Returning HTTRANSPARENT from WM_NCHITTEST only forwards within the same thread — NOT cross-process. So to pass hover/click events to other apps, the pixel must have alpha=0. To get hit-testing on invisible areas (e.g. resize grab zones beyond the visible border), use a dedicated Border element with alpha=1 brush covering only the edge zone — not a window-wide background, which would block hover events on apps below the frame interior.
