@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Win32;
@@ -115,7 +114,10 @@ public sealed class AppConfig
 
         if (enabled)
         {
-            var exePath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
+            // Environment.ProcessPath is the running executable's path and is correct for
+            // single-file/self-contained builds; Assembly.Location returns "" in those.
+            var exePath = Environment.ProcessPath
+                ?? throw new InvalidOperationException("Cannot determine executable path for Start with Windows");
             key.SetValue(AppName, $"\"{exePath}\"");
         }
         else
