@@ -4,3 +4,4 @@
 - [Sizing frame DPI/topmost design](project_sizing_frame_dpi.md) — why single transparent window, why swallow WM_DPICHANGED, why re-assert HWND_TOPMOST; layered window alpha hit-testing
 - [Drag-to-resize design](project_resize_design.md) — WS_THICKFRAME approach, Esc hotkey management during resize, _suppressSync pattern
 - [Drag-to-move design](project_drag_move_design.md) — custom drag loop + cursor warp into frame's interior bottom-left pixel; why not DragMove; hide/restore sequence
+- [Six Labors license](project_sixlabors_license.md) — ImageSharp 4.x community key in sixlabors.lic; expires 2028-01-07, renewal steps
