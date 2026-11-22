@@ -11,8 +11,5 @@ docs/*
 # Runtime state (generated next to exe on first run)
 state.json
 
-# Local deploy config (machine-specific install path)
-config/deploy.env
-
 # Local dev config (overrides default.json on deploy)
 config/local.json
