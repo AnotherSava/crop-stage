@@ -3,9 +3,6 @@ bin/
 obj/
 publish/
 
-# Claude Code
-.claude/settings.local.json
-
 # Local docs — ignore all except plans and screenshots
 docs/*
 !docs/plans/
