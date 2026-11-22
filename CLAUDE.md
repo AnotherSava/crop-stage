@@ -9,9 +9,10 @@ Stack: .NET 10, WinForms tray + per-feature overlay windows (WPF for the sizing 
 ## Build & Test
 
 ```
-dotnet build src/CropStage.csproj -c Release
-dotnet test tests/CropStage.Tests.csproj
+bash .claude/commit-checks.sh
 ```
+
+This is the gate `/yolo` and `/wrap-up` run before a commit, and the check to run on a change. It runs the conventions check, then the Restore, Build and Test steps of `.github/workflows/build.yml` against the whole solution in Release; the script is where those commands live. To build only the app, run `dotnet build src/CropStage.csproj -c Release`.
 
 ## Layout
 
