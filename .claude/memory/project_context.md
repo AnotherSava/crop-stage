@@ -11,6 +11,6 @@ This project (formerly `screen-tools`) is a .NET 10 WinForms tray + WPF overlay 
 
 **Why:** The old Python+AHK version couldn't support features like drag-to-resize corner handles on the frame. .NET gives a proper path for richer UI.
 
-**How to apply:** When working here, follow the feature-folder pattern (`src/Features/<Name>/`). Shared infrastructure (AppConfig, Logger, GlobalHotkey, TrayApplicationContext) lives at `src/` root. Config schema is in `config/default.json`; runtime state (frame dimensions, last folder/filename) goes to `state.json` next to the exe. Deploy via `bash scripts/deploy.sh` which installs to the directory configured in `config/deploy.env`.
+**How to apply:** When working here, follow the feature-folder pattern (`src/Features/<Name>/`). Shared infrastructure (AppConfig, Logger, GlobalHotkey, TrayApplicationContext) lives at `src/` root. Config schema is in `config/default.json`; runtime state (frame dimensions, last folder/filename) goes to `state.json` next to the exe. Deploy with the deploy skill, which reads the committed `config/deploy.env` (`DEPLOY_TYPE=dotnet`, `INSTALL_DIR`) and installs there.
 
 **Burned-in gotcha:** Mysterious TextBox focus lag in the dialog on 2026-04-13 turned out to be **Grammarly** running in the background and subclassing edit controls globally. If the user reports focus lag again on this project (or any other .NET UI project), ask about Grammarly first — or similar writing assistants, IMEs, password managers that hook text input — before chasing WPF/WinForms internals.
